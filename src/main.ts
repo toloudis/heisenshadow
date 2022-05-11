@@ -20,7 +20,7 @@ window.addEventListener('resize', () => {
 //   <a href="https://vitejs.dev/guide/features.html" target="_blank">Documentation</a>
 // `
 
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
 ctx.lineWidth = 5;
 ctx.lineJoin = ctx.lineCap = 'round';
@@ -33,42 +33,42 @@ function triple(px:number, py:number, angleDegrees:number) {
   let y = py;
   const separation = 40;
   let dx = 5;
-  ctx?.beginPath();
-  ctx?.moveTo(x, y);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x-dx/2, y-10, x, y-10);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx, y+100, x, y+100);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x-dx/2, y+150, x, y+150);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx/4, y+175, x, y+175);
-  ctx?.stroke();
+  ctx.stroke();
   
   x = x + separation;
   dx = 7;
-  ctx?.beginPath();
-  ctx?.moveTo(x, y);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x-dx/2, y-10, x, y-10);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx, y+100, x, y+100);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x-dx/2, y+150, x, y+150);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx/4, y+175, x, y+175);
-  ctx?.stroke();  
+  ctx.stroke();  
 
   x = x + separation;
   dx = 9;
-  ctx?.beginPath();
-  ctx?.moveTo(x, y);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x-dx/2, y-10, x, y-10);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx, y+100, x, y+100);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x-dx/2, y+150, x, y+150);
-  ctx?.stroke();
+  ctx.stroke();
   ctx.quadraticCurveTo(x+dx/4, y+175, x, y+175);
-  ctx?.stroke();  
+  ctx.stroke();  
 
   // Reset transformation matrix to the identity matrix
   ctx.setTransform(1, 0, 0, 1, 0, 0);
