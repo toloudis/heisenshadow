@@ -2,12 +2,16 @@
   "name": "heisenshadow",
   "private": true,
   "version": "0.0.0",
+  "homepage": "http://toloudis.github.io/heisenshadow",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
+    "gh-pages": "^3.2.3",
     "typescript": "^4.5.4",
     "vite": "^2.9.7"
   }
