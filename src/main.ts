@@ -27,12 +27,17 @@ ctx.lineJoin = ctx.lineCap = "round";
 ctx.shadowBlur = 5;
 ctx.shadowColor = "rgb(0, 0, 0)";
 
+function rand(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
 function triple(px: number, py: number, angleDegrees: number) {
+  let wiggle = rand(-3, 3);
   ctx?.rotate((angleDegrees * Math.PI) / 180);
   let x = px;
   let y = py;
   const separation = 40;
-  let dx = 5;
+  let dx = 5 + wiggle;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
@@ -45,7 +50,8 @@ function triple(px: number, py: number, angleDegrees: number) {
   ctx.stroke();
 
   x = x + separation;
-  dx = 7;
+  wiggle = rand(-4, 4);
+  dx = 7 + wiggle;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
@@ -58,7 +64,8 @@ function triple(px: number, py: number, angleDegrees: number) {
   ctx.stroke();
 
   x = x + separation;
-  dx = 9;
+  wiggle = rand(-5, 5);
+  dx = 9 + wiggle;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
@@ -74,11 +81,11 @@ function triple(px: number, py: number, angleDegrees: number) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-for (let i = 0; i < 1000; ++i) {
+for (let i = 0; i < 100; ++i) {
   triple(
     Math.random() * canvas.width,
     Math.random() * canvas.height,
-    Math.random() * 45
+    Math.random() * 10
   );
 }
 // triple(100, 100, 7);
