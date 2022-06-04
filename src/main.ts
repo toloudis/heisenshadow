@@ -1,14 +1,32 @@
 import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
+import { curvy1, straight, triad } from "./strokes";
+
 import "./style.css";
 
+const params = {
+  range: { min: 16, max: 48 },
+  width: 3,
+  isDrawing: false,
+  canvasAspect: 8.5 / 11,
+};
+
+function setCanvasSize(canvas: HTMLCanvasElement) {
+  const windowAspect = window.innerWidth / window.innerHeight;
+  if (params.canvasAspect > windowAspect) {
+    canvas.width = window.innerWidth;
+    canvas.height = canvas.width / params.canvasAspect;
+  } else {
+    canvas.height = window.innerHeight
+    canvas.width = canvas.height * params.canvasAspect;
+  }
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+setCanvasSize(canvas);
 window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  setCanvasSize(canvas);
 });
 
 // const canvas = document.createElement("canvas");
@@ -26,11 +44,6 @@ window.addEventListener("resize", () => {
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
 
-const params = {
-  range: { min: 16, max: 48 },
-  width: 3,
-};
-
 pane.addInput(params, "range", {
   min: 0,
   max: 100,
@@ -41,12 +54,20 @@ pane.addInput(params, "width", {
   max: 7,
   step: 0.1,
 });
+const btn = pane.addButton({
+  title: 'Pause/Play',
+});
+btn.on('click', () => {
+  params.isDrawing = !params.isDrawing;
+  if (params.isDrawing) {
+    window.requestAnimationFrame(render);
+  }
+});
 
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-
-ctx.lineWidth = 3;
+ctx.lineWidth = 2;
 ctx.lineJoin = ctx.lineCap = "round";
-ctx.shadowBlur = 5;
+ctx.shadowBlur = 2;
 ctx.shadowColor = "rgb(0, 0, 0)";
 
 function rand(min: number, max: number) {
@@ -114,17 +135,44 @@ function triple(
 
 function render(t: DOMHighResTimeStamp) {
   //  for (let i = 0; i < 750; ++i) {
-  triple(
-    Math.random() * canvas.width,
-    Math.random() * canvas.height,
-    Math.random() * 45,
-    ((t % 1000) / 1000) * params.width
-  );
+  // triple(
+  //   Math.random() * canvas.width,
+  //   Math.random() * canvas.height,
+  //   Math.random() * 45,
+  //   ((t % 1000) / 1000) * params.width
+  // );
+
+
+  ctx.translate(100, 100);
+  ctx.scale(1, 50);
+  straight(ctx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.stroke();
+
+  ctx.translate(200, 100);
+  ctx.scale(50, 50);
+  curvy1(ctx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.stroke();
+
+  ctx.translate(300, 100);
+  ctx.scale(1, 50);
+  triad(ctx, straight, 10, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.stroke();
+
+
+  ctx.translate(400, 100);
+  ctx.scale(10, 50);
+  triad(ctx, curvy1, 10, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.stroke();
+
   //  }
   // triple(100, 100, 7);
   // //triple(110, 100);
   // triple(125, 100, 9);
-  window.requestAnimationFrame(render);
+  if (params.isDrawing) {
+    window.requestAnimationFrame(render);
+  }
 }
-
-render(performance.now());
