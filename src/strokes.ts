@@ -1,3 +1,5 @@
+import { rand } from "./rand";
+
 let curvesize = 0.01;
 
 export function setCurveSize(size: number) {
@@ -7,20 +9,22 @@ export function setCurveSize(size: number) {
 export function straight(ctx: CanvasRenderingContext2D) {
   ctx.moveTo(0, -curvesize);
   ctx.lineTo(0, curvesize);
-  //ctx.moveTo(0,0);
+  ctx.stroke();
+  ctx.moveTo(0, 0);
 }
 
 export function curvy1(ctx: CanvasRenderingContext2D) {
   ctx.moveTo(-0.25 * curvesize, -curvesize);
   ctx.bezierCurveTo(
-    0.25 * curvesize,
-    -0.333 * curvesize,
-    0.25 * curvesize,
-    0.333 * curvesize,
+    0.25 * curvesize * (1.0 + rand(-0.5, 0.5)),
+    -0.333 * curvesize * (1.0 + rand(-0.5, 0.5)),
+    0.25 * curvesize * (1.0 + rand(-0.5, 0.5)),
+    0.333 * curvesize * (1.0 + rand(-0.5, 0.5)),
     -0.25 * curvesize,
     curvesize
   );
-  //ctx.moveTo(0,0);
+  ctx.stroke();
+  ctx.moveTo(0, 0);
 }
 
 export function triad(

@@ -1,6 +1,7 @@
 import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
+import { rand } from "./rand";
 import { curvy1, setCurveSize, straight, triad } from "./strokes";
 
 import "./style.css";
@@ -70,10 +71,6 @@ btn.on("click", () => {
     window.requestAnimationFrame(render);
   }
 });
-
-function rand(min: number, max: number) {
-  return Math.random() * (max - min) + min;
-}
 
 function triple(
   px: number,
