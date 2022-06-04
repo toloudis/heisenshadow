@@ -1,6 +1,6 @@
 import { rand } from "./rand";
 
-let curvesize = 0.01;
+let curvesize = 0.03;
 
 export function setCurveSize(size: number) {
   curvesize = size;

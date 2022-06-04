@@ -8,7 +8,7 @@ import "./style.css";
 
 const params = {
   range: { min: 16, max: 48 },
-  width: 0.01,
+  width: 0.03,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
 };
@@ -58,9 +58,9 @@ const winput = pane.addInput(params, "width", {
   max: 1,
   step: 0.001,
 });
-winput.on("change", () => {
-  setCurveSize(params.width);
-});
+// winput.on("change", () => {
+//   setCurveSize(params.width);
+// });
 
 const btn = pane.addButton({
   title: "Pause/Play",
@@ -156,8 +156,8 @@ function render(t: DOMHighResTimeStamp) {
 
   const x = rand(0.02, 0.98);
   const y = rand(0.02, 0.98);
-  const ang = rand(-4, 4);
-  const linewidth = y * 0.002; //rand(0.01, 0.1);
+  const ang = rand(-8, 8);
+  const linewidth = (y * params.width) / 10.0; //rand(0.01, 0.1);
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
