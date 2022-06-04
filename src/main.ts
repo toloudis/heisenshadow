@@ -37,8 +37,8 @@ function setCanvasSize(
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 ctx.lineJoin = ctx.lineCap = "round";
-//ctx.shadowBlur =0;// 0.01;
-//ctx.shadowColor = "rgb(0, 0, 0)";
+ctx.shadowBlur = 0; // 0.01;
+ctx.shadowColor = "rgb(0, 0, 0)";
 setCanvasSize(canvas, ctx);
 window.addEventListener("resize", () => {
   setCanvasSize(canvas, ctx);
@@ -137,40 +137,38 @@ function triple(
 function render(t: DOMHighResTimeStamp) {
   const oldlw = ctx.lineWidth;
 
-  ctx.translate(0.2, 0.2);
-  straight(ctx);
-  ctx.translate(-0.2, -0.2);
-  ctx.stroke();
+  // ctx.translate(0.2, 0.2);
+  // straight(ctx);
+  // ctx.translate(-0.2, -0.2);
+  // ctx.stroke();
 
-  ctx.translate(0.4, 0.2);
-  curvy1(ctx);
-  ctx.translate(-0.4, -0.2);
-  ctx.stroke();
+  // ctx.translate(0.4, 0.2);
+  // curvy1(ctx);
+  // ctx.translate(-0.4, -0.2);
+  // ctx.stroke();
 
-  ctx.translate(0.6, 0.2);
-  triad(ctx, straight, 0.02, 0);
-  ctx.translate(-0.6, -0.2);
-  ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
-  ctx.stroke();
+  // ctx.translate(0.6, 0.2);
+  // triad(ctx, straight, 0.02, 0);
+  // ctx.translate(-0.6, -0.2);
+  // ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
 
-  ctx.translate(0.8, 0.2);
-  triad(ctx, curvy1, 0.02, 0);
-  ctx.translate(-0.8, -0.2);
-  ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
-  ctx.stroke();
+  // ctx.translate(0.8, 0.2);
+  // triad(ctx, curvy1, 0.02, 0);
+  // ctx.translate(-0.8, -0.2);
+  // ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
 
   const x = rand(0.02, 0.98);
   const y = rand(0.02, 0.98);
   const ang = rand(-4, 4);
-  const linewidth = y * 0.001; //rand(0.01, 0.1);
+  const linewidth = y * 0.002; //rand(0.01, 0.1);
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
-  triad(ctx, curvy1, 0.02, 0);
+  triad(ctx, curvy1, 0.01, 0);
   ctx.rotate((-ang * Math.PI) / 180);
   ctx.translate(-x, -y);
   ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
-  ctx.stroke();
+  // ctx.stroke();
   ctx.lineWidth = oldlw;
 
   if (params.isDrawing) {

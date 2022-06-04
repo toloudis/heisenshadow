@@ -29,13 +29,18 @@ export function triad(
   dx: number,
   dy: number
 ) {
-  // ctx.beginPath();
+  ctx.beginPath();
   ctx.translate(-dx, -dy);
   strokeFn(ctx);
+  ctx.stroke();
+  ctx.beginPath();
   ctx.translate(dx, dy);
   strokeFn(ctx);
+  ctx.stroke();
+  ctx.beginPath();
   ctx.translate(dx, dy);
   strokeFn(ctx);
+  ctx.stroke();
   ctx.moveTo(0, 0);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  //  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
