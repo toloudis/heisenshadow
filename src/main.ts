@@ -1,3 +1,6 @@
+import { Pane } from "tweakpane";
+import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
+
 import "./style.css";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -20,9 +23,28 @@ window.addEventListener("resize", () => {
 //   <a href="https://vitejs.dev/guide/features.html" target="_blank">Documentation</a>
 // `
 
+const pane = new Pane();
+pane.registerPlugin(EssentialsPlugin);
+
+const params = {
+  range: { min: 16, max: 48 },
+  width: 3,
+};
+
+pane.addInput(params, "range", {
+  min: 0,
+  max: 100,
+  step: 1,
+});
+pane.addInput(params, "width", {
+  min: 0,
+  max: 7,
+  step: 0.1,
+});
+
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
-ctx.lineWidth = 5;
+ctx.lineWidth = 3;
 ctx.lineJoin = ctx.lineCap = "round";
 ctx.shadowBlur = 5;
 ctx.shadowColor = "rgb(0, 0, 0)";
@@ -31,7 +53,16 @@ function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
-function triple(px: number, py: number, angleDegrees: number) {
+function triple(
+  px: number,
+  py: number,
+  angleDegrees: number,
+  linewidth: number
+) {
+  ctx.lineWidth = linewidth;
+  ctx.shadowBlur = linewidth + 2;
+  ctx.shadowColor = "rgb(0, 0, 0)";
+
   let wiggle = rand(-3, 3);
   ctx?.rotate((angleDegrees * Math.PI) / 180);
   let x = px;
@@ -81,13 +112,19 @@ function triple(px: number, py: number, angleDegrees: number) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-for (let i = 0; i < 100; ++i) {
+function render(t: DOMHighResTimeStamp) {
+  //  for (let i = 0; i < 750; ++i) {
   triple(
     Math.random() * canvas.width,
     Math.random() * canvas.height,
-    Math.random() * 10
+    Math.random() * 45,
+    ((t % 1000) / 1000) * params.width
   );
+  //  }
+  // triple(100, 100, 7);
+  // //triple(110, 100);
+  // triple(125, 100, 9);
+  window.requestAnimationFrame(render);
 }
-// triple(100, 100, 7);
-// //triple(110, 100);
-// triple(125, 100, 9);
+
+render(performance.now());

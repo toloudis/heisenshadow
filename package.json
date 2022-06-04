@@ -10,8 +10,13 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
+  "dependencies": {
+    "tweakpane": "^3.0.8",
+    "@tweakpane/plugin-essentials": "^0.1.4"
+  },
   "devDependencies": {
-    "gh-pages": "^3.2.3",
+    "@tweakpane/core": "^1.0.9",
+    "gh-pages": "^4.0.0",
     "typescript": "^4.5.4",
     "vite": "^2.9.7"
   }
