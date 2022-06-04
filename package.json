@@ -5,7 +5,7 @@
   "homepage": "http://toloudis.github.io/heisenshadow",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build --base=/heisenshadow",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
