@@ -1,45 +1,45 @@
 import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
-import { curvy1, straight, triad } from "./strokes";
+import { curvy1, setCurveSize, straight, triad } from "./strokes";
 
 import "./style.css";
 
 const params = {
   range: { min: 16, max: 48 },
-  width: 3,
+  width: 0.01,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
 };
 
-function setCanvasSize(canvas: HTMLCanvasElement) {
+function setCanvasSize(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
   const windowAspect = window.innerWidth / window.innerHeight;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
   if (params.canvasAspect > windowAspect) {
-    canvas.width = window.innerWidth;
-    canvas.height = canvas.width / params.canvasAspect;
+    canvas.width = w;
+    h = w/params.canvasAspect;
+    canvas.height = h;
   } else {
-    canvas.height = window.innerHeight
-    canvas.width = canvas.height * params.canvasAspect;
+    canvas.height = h;
+    w = h*params.canvasAspect;
+    canvas.width = w;
   }
+  // set coordinate system to 0,0-1,1
+  context.setTransform(w,0,0, h, 0,0);
+  //context.scale(canvas.width, canvas.height);
+  context.lineWidth = 0.001;
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
-setCanvasSize(canvas);
+const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+ctx.lineJoin = ctx.lineCap = "round";
+//ctx.shadowBlur =0;// 0.01;
+//ctx.shadowColor = "rgb(0, 0, 0)";
+setCanvasSize(canvas, ctx);
 window.addEventListener("resize", () => {
-  setCanvasSize(canvas);
+  setCanvasSize(canvas, ctx);
 });
-
-// const canvas = document.createElement("canvas");
-// canvas.width = window.innerWidth;
-// canvas.height = window.innerHeight;
-// // canvas.style.width = window.innerWidth;
-// // canvas.style.height = window.innerHeight;
-// app.appendChild(canvas);
-
-// app.innerHTML = `
-//   <h1>Hello Vite!</h1>
-//   <a href="https://vitejs.dev/guide/features.html" target="_blank">Documentation</a>
-// `
 
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
@@ -49,11 +49,15 @@ pane.addInput(params, "range", {
   max: 100,
   step: 1,
 });
-pane.addInput(params, "width", {
+const winput = pane.addInput(params, "width", {
   min: 0,
-  max: 7,
-  step: 0.1,
+  max: 1,
+  step: 0.001,
 });
+winput.on('change', () => {
+  setCurveSize(params.width);
+});
+
 const btn = pane.addButton({
   title: 'Pause/Play',
 });
@@ -63,12 +67,6 @@ btn.on('click', () => {
     window.requestAnimationFrame(render);
   }
 });
-
-const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-ctx.lineWidth = 2;
-ctx.lineJoin = ctx.lineCap = "round";
-ctx.shadowBlur = 2;
-ctx.shadowColor = "rgb(0, 0, 0)";
 
 function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
@@ -134,44 +132,27 @@ function triple(
 }
 
 function render(t: DOMHighResTimeStamp) {
-  //  for (let i = 0; i < 750; ++i) {
-  // triple(
-  //   Math.random() * canvas.width,
-  //   Math.random() * canvas.height,
-  //   Math.random() * 45,
-  //   ((t % 1000) / 1000) * params.width
-  // );
 
-
-  ctx.translate(100, 100);
-  ctx.scale(1, 50);
+  ctx.translate(0.2, 0.2);
   straight(ctx);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(-0.2, -0.2);
   ctx.stroke();
 
-  ctx.translate(200, 100);
-  ctx.scale(50, 50);
+  ctx.translate(0.4, 0.2);
   curvy1(ctx);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(-0.4, -0.2);
   ctx.stroke();
 
-  ctx.translate(300, 100);
-  ctx.scale(1, 50);
-  triad(ctx, straight, 10, 0);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(0.6, 0.2);
+  triad(ctx, straight, 0.02, 0);
+  ctx.setTransform(canvas.width,0,0, canvas.height, 0,0);
   ctx.stroke();
 
-
-  ctx.translate(400, 100);
-  ctx.scale(10, 50);
-  triad(ctx, curvy1, 10, 0);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(0.8, 0.2);
+  triad(ctx, curvy1, 0.02, 0);
+  ctx.setTransform(canvas.width,0,0, canvas.height, 0,0);
   ctx.stroke();
 
-  //  }
-  // triple(100, 100, 7);
-  // //triple(110, 100);
-  // triple(125, 100, 9);
   if (params.isDrawing) {
     window.requestAnimationFrame(render);
   }
