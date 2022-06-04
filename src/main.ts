@@ -2,7 +2,7 @@ import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
 import { rand } from "./rand";
-import { curvy1, setCurveSize, straight, triad } from "./strokes";
+import { curvy1, triad } from "./strokes";
 
 import "./style.css";
 
@@ -53,7 +53,7 @@ pane.addInput(params, "range", {
   max: 100,
   step: 1,
 });
-const winput = pane.addInput(params, "width", {
+/*const winput =*/ pane.addInput(params, "width", {
   min: 0,
   max: 1,
   step: 0.001,
@@ -72,66 +72,7 @@ btn.on("click", () => {
   }
 });
 
-function triple(
-  px: number,
-  py: number,
-  angleDegrees: number,
-  linewidth: number
-) {
-  ctx.lineWidth = linewidth;
-  ctx.shadowBlur = linewidth + 2;
-  ctx.shadowColor = "rgb(0, 0, 0)";
-
-  let wiggle = rand(-3, 3);
-  ctx?.rotate((angleDegrees * Math.PI) / 180);
-  let x = px;
-  let y = py;
-  const separation = 40;
-  let dx = 5 + wiggle;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx, y + 100, x, y + 100);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x - dx / 2, y + 150, x, y + 150);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx / 4, y + 175, x, y + 175);
-  ctx.stroke();
-
-  x = x + separation;
-  wiggle = rand(-4, 4);
-  dx = 7 + wiggle;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx, y + 100, x, y + 100);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x - dx / 2, y + 150, x, y + 150);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx / 4, y + 175, x, y + 175);
-  ctx.stroke();
-
-  x = x + separation;
-  wiggle = rand(-5, 5);
-  dx = 9 + wiggle;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.quadraticCurveTo(x - dx / 2, y - 10, x, y - 10);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx, y + 100, x, y + 100);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x - dx / 2, y + 150, x, y + 150);
-  ctx.stroke();
-  ctx.quadraticCurveTo(x + dx / 4, y + 175, x, y + 175);
-  ctx.stroke();
-
-  // Reset transformation matrix to the identity matrix
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-}
-
-function render(t: DOMHighResTimeStamp) {
+function render(_t: DOMHighResTimeStamp) {
   const oldlw = ctx.lineWidth;
 
   // ctx.translate(0.2, 0.2);
