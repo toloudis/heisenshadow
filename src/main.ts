@@ -2,7 +2,13 @@ import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
 import { rand } from "./rand";
-import { curvy2, loadStrokeAssets, setCurveUniformity, triad } from "./strokes";
+import {
+  curvy2,
+  loadStrokeAssets,
+  setCurveUniformity,
+  strokeImage,
+  triad,
+} from "./strokes";
 
 import "./style.css";
 
@@ -12,6 +18,7 @@ const params = {
   angleVariation: 8.0,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
+  strokeType: 0,
 };
 
 function setCanvasSize(
@@ -55,35 +62,55 @@ pane.addInput(params, "angleVariation", {
   max: 100,
   step: 0.1,
 });
-/*const winput =*/ pane.addInput(params, "width", {
+pane.addInput(params, "width", {
   min: 0,
   max: 1,
   step: 0.001,
 });
-// winput.on("change", () => {
+// .on("change", () => {
 //   setCurveSize(params.width);
 // });
-const uniformityInput = pane.addInput(params, "uniformity", {
-  min: 0,
-  max: 1,
-  step: 0.01,
-});
-uniformityInput.on("change", () => {
-  setCurveUniformity(params.uniformity);
+pane
+  .addInput(params, "uniformity", {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  })
+  .on("change", () => {
+    setCurveUniformity(params.uniformity);
+  });
+pane.addInput(params, "strokeType", {
+  options: {
+    triLine: 0,
+    bitmap0: 1,
+    bitmap1: 2,
+    bitmap2: 3,
+    bitmap3: 4,
+    bitmap4: 5,
+    bitmap5: 6,
+  },
 });
 
-const btn = pane.addButton({
-  title: "Pause/Play",
-});
-btn.on("click", () => {
-  params.isDrawing = !params.isDrawing;
-  if (params.isDrawing) {
-    window.requestAnimationFrame(render);
-  }
-});
+pane
+  .addButton({
+    title: "Pause/Play",
+  })
+  .on("click", () => {
+    params.isDrawing = !params.isDrawing;
+    if (params.isDrawing) {
+      window.requestAnimationFrame(render);
+    }
+  });
 
 function render(_t: DOMHighResTimeStamp) {
   const oldlw = ctx.lineWidth;
+
+  // draw one of each bitmap stroke
+  // for (let i = 0; i < 6; i++) {
+  //   ctx.translate(i / 6.0, 0.2);
+  //   strokeImage(ctx, i);
+  //   ctx.translate(-i / 6.0, -0.2);
+  // }
 
   // ctx.translate(0.2, 0.2);
   // straight(ctx);
@@ -112,7 +139,15 @@ function render(_t: DOMHighResTimeStamp) {
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
-  triad(ctx, curvy2, 0.01, 0);
+  if (params.strokeType === 0) {
+    ctx.lineWidth = linewidth;
+    triad(ctx, curvy2, 0.01, 0);
+  } else {
+    const oldAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = y + params.width;
+    strokeImage(ctx, params.strokeType - 1);
+    ctx.globalAlpha = oldAlpha;
+  }
   ctx.rotate((-ang * Math.PI) / 180);
   ctx.translate(-x, -y);
   ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);

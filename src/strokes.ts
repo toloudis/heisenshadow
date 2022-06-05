@@ -97,3 +97,14 @@ export function loadStrokeAssets(ctx: CanvasRenderingContext2D) {
     strokeImages.push(img);
   }
 }
+
+export function strokeImage(ctx: CanvasRenderingContext2D, index: number) {
+  const aspect = strokeImages[index].width / strokeImages[index].height;
+  ctx.drawImage(
+    strokeImages[index],
+    0.0,
+    0.0,
+    curvesize * 2.0 * aspect,
+    curvesize * 2.0
+  );
+}
