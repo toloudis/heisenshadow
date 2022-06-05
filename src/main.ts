@@ -2,13 +2,14 @@ import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 
 import { rand } from "./rand";
-import { curvy1, triad } from "./strokes";
+import { curvy2, loadStrokeAssets, setCurveUniformity, triad } from "./strokes";
 
 import "./style.css";
 
 const params = {
-  range: { min: 16, max: 48 },
   width: 0.03,
+  uniformity: 0.7,
+  angleVariation: 8.0,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
 };
@@ -44,14 +45,15 @@ setCanvasSize(canvas, ctx);
 window.addEventListener("resize", () => {
   setCanvasSize(canvas, ctx);
 });
+loadStrokeAssets(ctx);
 
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
 
-pane.addInput(params, "range", {
+pane.addInput(params, "angleVariation", {
   min: 0,
   max: 100,
-  step: 1,
+  step: 0.1,
 });
 /*const winput =*/ pane.addInput(params, "width", {
   min: 0,
@@ -61,6 +63,14 @@ pane.addInput(params, "range", {
 // winput.on("change", () => {
 //   setCurveSize(params.width);
 // });
+const uniformityInput = pane.addInput(params, "uniformity", {
+  min: 0,
+  max: 1,
+  step: 0.01,
+});
+uniformityInput.on("change", () => {
+  setCurveUniformity(params.uniformity);
+});
 
 const btn = pane.addButton({
   title: "Pause/Play",
@@ -97,12 +107,12 @@ function render(_t: DOMHighResTimeStamp) {
 
   const x = rand(0.02, 0.98);
   const y = rand(0.02, 0.98);
-  const ang = rand(-8, 8);
+  const ang = rand(-params.angleVariation, params.angleVariation);
   const linewidth = (y * params.width) / 10.0; //rand(0.01, 0.1);
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
-  triad(ctx, curvy1, 0.01, 0);
+  triad(ctx, curvy2, 0.01, 0);
   ctx.rotate((-ang * Math.PI) / 180);
   ctx.translate(-x, -y);
   ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
