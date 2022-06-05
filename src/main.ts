@@ -5,6 +5,7 @@ import { rand } from "./rand";
 import {
   curvy2,
   loadStrokeAssets,
+  setCurveSize,
   setCurveUniformity,
   strokeImage,
   triad,
@@ -13,12 +14,14 @@ import {
 import "./style.css";
 
 const params = {
-  width: 0.03,
+  thickness: 0.03,
   uniformity: 0.7,
   angleVariation: 8.0,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
   strokeType: 0,
+  multiplicity: 3,
+  linelength: 0.03,
 };
 
 function setCanvasSize(
@@ -62,14 +65,20 @@ pane.addInput(params, "angleVariation", {
   max: 100,
   step: 0.1,
 });
-pane.addInput(params, "width", {
+pane.addInput(params, "thickness", {
   min: 0,
-  max: 1,
+  max: 0.1,
   step: 0.001,
 });
-// .on("change", () => {
-//   setCurveSize(params.width);
-// });
+pane
+  .addInput(params, "linelength", {
+    min: 0,
+    max: 0.1,
+    step: 0.001,
+  })
+  .on("change", () => {
+    setCurveSize(0.03, params.linelength);
+  });
 pane
   .addInput(params, "uniformity", {
     min: 0,
@@ -79,15 +88,23 @@ pane
   .on("change", () => {
     setCurveUniformity(params.uniformity);
   });
-pane.addInput(params, "strokeType", {
+// pane.addInput(params, "strokeType", {
+//   options: {
+//     triLine: 0,
+//     bitmap0: 1,
+//     bitmap1: 2,
+//     bitmap2: 3,
+//     bitmap3: 4,
+//     bitmap4: 5,
+//     bitmap5: 6,
+//   },
+// });
+pane.addInput(params, "multiplicity", {
   options: {
-    triLine: 0,
-    bitmap0: 1,
-    bitmap1: 2,
-    bitmap2: 3,
-    bitmap3: 4,
-    bitmap4: 5,
-    bitmap5: 6,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
   },
 });
 
@@ -101,6 +118,16 @@ pane
       window.requestAnimationFrame(render);
     }
   });
+pane
+  .addButton({
+    title: "Clear",
+  })
+  .on("click", () => {
+    const oldFill = ctx.fillStyle;
+    ctx.fillStyle = "rgba(255,255,255,1)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = oldFill;
+  });
 
 function render(_t: DOMHighResTimeStamp) {
   const oldlw = ctx.lineWidth;
@@ -112,39 +139,19 @@ function render(_t: DOMHighResTimeStamp) {
   //   ctx.translate(-i / 6.0, -0.2);
   // }
 
-  // ctx.translate(0.2, 0.2);
-  // straight(ctx);
-  // ctx.translate(-0.2, -0.2);
-  // ctx.stroke();
-
-  // ctx.translate(0.4, 0.2);
-  // curvy1(ctx);
-  // ctx.translate(-0.4, -0.2);
-  // ctx.stroke();
-
-  // ctx.translate(0.6, 0.2);
-  // triad(ctx, straight, 0.02, 0);
-  // ctx.translate(-0.6, -0.2);
-  // ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
-
-  // ctx.translate(0.8, 0.2);
-  // triad(ctx, curvy1, 0.02, 0);
-  // ctx.translate(-0.8, -0.2);
-  // ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
-
   const x = rand(0.02, 0.98);
   const y = rand(0.02, 0.98);
   const ang = rand(-params.angleVariation, params.angleVariation);
-  const linewidth = (y * params.width) / 10.0; //rand(0.01, 0.1);
+  const linewidth = (y * params.thickness) / 10.0; //rand(0.01, 0.1);
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
   if (params.strokeType === 0) {
     ctx.lineWidth = linewidth;
-    triad(ctx, curvy2, 0.01, 0);
+    triad(ctx, params.multiplicity, curvy2, 0.01, 0);
   } else {
     const oldAlpha = ctx.globalAlpha;
-    ctx.globalAlpha = y + params.width;
+    ctx.globalAlpha = y + params.thickness;
     strokeImage(ctx, params.strokeType - 1);
     ctx.globalAlpha = oldAlpha;
   }

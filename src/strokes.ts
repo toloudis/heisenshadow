@@ -8,47 +8,29 @@ import assetUrl4 from "./assets/strokes-4.png";
 import assetUrl5 from "./assets/strokes-5.png";
 
 let curveVariability = 0.25;
-let curvesize = 0.03;
+let curvesizex = 0.03;
+let curvesizey = 0.03;
 const strokeImages: HTMLImageElement[] = [];
 const strokePatterns: CanvasPattern[] = [];
 
-export function setCurveSize(size: number) {
-  curvesize = size;
+export function setCurveSize(sizex: number, sizey: number) {
+  curvesizex = sizex;
+  curvesizey = sizey;
 }
 export function setCurveUniformity(uniformity: number) {
   curveVariability = 1.0 - uniformity;
 }
 
-export function straight(ctx: CanvasRenderingContext2D) {
-  ctx.moveTo(0, -curvesize);
-  ctx.lineTo(0, curvesize);
-  ctx.stroke();
-  ctx.moveTo(0, 0);
-}
-
-export function curvy1(ctx: CanvasRenderingContext2D) {
-  ctx.moveTo(-0.25 * curvesize, -curvesize);
-  ctx.bezierCurveTo(
-    0.25 * curvesize * (1.0 + rand(-0.5, 0.5)),
-    -0.333 * curvesize * (1.0 + rand(-0.5, 0.5)),
-    0.25 * curvesize * (1.0 + rand(-0.5, 0.5)),
-    0.333 * curvesize * (1.0 + rand(-0.5, 0.5)),
-    -0.25 * curvesize,
-    curvesize
-  );
-  ctx.stroke();
-  ctx.moveTo(0, 0);
-}
-
 export function curvy2(ctx: CanvasRenderingContext2D) {
-  ctx.moveTo(0.0 * curvesize, -1.0 * curvesize);
+  ctx.moveTo(0.0 * curvesizex, -1.0 * curvesizey);
   ctx.bezierCurveTo(
-    0.0 * curvesize + curvesize * rand(-curveVariability, curveVariability),
-    -0.333 * curvesize + curvesize * rand(-curveVariability, curveVariability),
-    0.0 * curvesize + curvesize * rand(-curveVariability, curveVariability),
-    0.333 * curvesize + curvesize * rand(-curveVariability, curveVariability),
-    0.0 * curvesize,
-    1.0 * curvesize
+    0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
+    -0.333 * curvesizey +
+      curvesizey * rand(-curveVariability, curveVariability),
+    0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
+    0.333 * curvesizey + curvesizey * rand(-curveVariability, curveVariability),
+    0.0 * curvesizex,
+    1.0 * curvesizey
   );
   ctx.stroke();
   ctx.moveTo(0, 0);
@@ -56,24 +38,28 @@ export function curvy2(ctx: CanvasRenderingContext2D) {
 
 export function triad(
   ctx: CanvasRenderingContext2D,
+  n: number,
   strokeFn: (ctx: CanvasRenderingContext2D) => void,
   dx: number,
   dy: number
 ) {
+  if (n < 1) {
+    return;
+  }
+  // first pos:
+  const dx0 = 0.5 * (n - 1) * -dx;
+  const dy0 = 0.5 * (n - 1) * -dx;
   ctx.beginPath();
-  ctx.translate(-dx, -dy);
+  ctx.translate(dx0, dy0);
   strokeFn(ctx);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.translate(dx, dy);
-  strokeFn(ctx);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.translate(dx, dy);
-  strokeFn(ctx);
-  ctx.stroke();
+  for (let i = 1; i < n; ++i) {
+    ctx.beginPath();
+    ctx.translate(dx, dy);
+    strokeFn(ctx);
+    ctx.stroke();
+  }
   ctx.moveTo(0, 0);
-  //  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 export function loadStrokeAssets(ctx: CanvasRenderingContext2D) {
@@ -104,7 +90,7 @@ export function strokeImage(ctx: CanvasRenderingContext2D, index: number) {
     strokeImages[index],
     0.0,
     0.0,
-    curvesize * 2.0 * aspect,
-    curvesize * 2.0
+    curvesizex * 2.0 * aspect,
+    curvesizey * 2.0
   );
 }
