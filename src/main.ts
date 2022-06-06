@@ -23,6 +23,10 @@ const params = {
   strokeType: 0,
   multiplicity: 3,
   linelength: 0.03,
+  clusters: {
+    size: 1,
+    spread: 0.04,
+  },
 };
 
 function setCanvasSize(
@@ -60,60 +64,6 @@ loadStrokeAssets(ctx);
 
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
-
-pane.addInput(params, "verticality", {
-  min: 0,
-  max: 1,
-  step: 0.01,
-});
-pane.addInput(params, "angleVariation", {
-  min: 0,
-  max: 100,
-  step: 0.1,
-});
-pane.addInput(params, "thickness", {
-  min: 0,
-  max: 0.1,
-  step: 0.001,
-});
-pane
-  .addInput(params, "linelength", {
-    min: 0,
-    max: 0.1,
-    step: 0.001,
-  })
-  .on("change", () => {
-    setCurveSize(0.03, params.linelength);
-  });
-pane
-  .addInput(params, "uniformity", {
-    min: 0,
-    max: 1,
-    step: 0.01,
-  })
-  .on("change", () => {
-    setCurveUniformity(params.uniformity);
-  });
-// pane.addInput(params, "strokeType", {
-//   options: {
-//     triLine: 0,
-//     bitmap0: 1,
-//     bitmap1: 2,
-//     bitmap2: 3,
-//     bitmap3: 4,
-//     bitmap4: 5,
-//     bitmap5: 6,
-//   },
-// });
-pane.addInput(params, "multiplicity", {
-  options: {
-    "1": 1,
-    "2": 2,
-    "3": 3,
-    "4": 4,
-  },
-});
-
 pane
   .addButton({
     title: "Pause/Play",
@@ -135,29 +85,84 @@ pane
     ctx.fillStyle = oldFill;
   });
 
-function render(_t: DOMHighResTimeStamp) {
+const fMarks = pane.addFolder({
+  title: "Marks",
+});
+
+fMarks.addInput(params, "verticality", {
+  min: 0,
+  max: 1,
+  step: 0.01,
+});
+fMarks.addInput(params, "angleVariation", {
+  min: 0,
+  max: 100,
+  step: 0.1,
+});
+fMarks.addInput(params, "thickness", {
+  min: 0,
+  max: 0.1,
+  step: 0.001,
+});
+fMarks
+  .addInput(params, "linelength", {
+    min: 0,
+    max: 0.1,
+    step: 0.001,
+  })
+  .on("change", () => {
+    setCurveSize(0.03, params.linelength);
+  });
+fMarks
+  .addInput(params, "uniformity", {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  })
+  .on("change", () => {
+    setCurveUniformity(params.uniformity);
+  });
+// pane.addInput(params, "strokeType", {
+//   options: {
+//     triLine: 0,
+//     bitmap0: 1,
+//     bitmap1: 2,
+//     bitmap2: 3,
+//     bitmap3: 4,
+//     bitmap4: 5,
+//     bitmap5: 6,
+//   },
+// });
+fMarks.addInput(params, "multiplicity", {
+  options: {
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+  },
+});
+
+const fClusters = pane.addFolder({
+  title: "Clusters",
+});
+fClusters.addInput(params.clusters, "size", { min: 0, max: 100, step: 1 });
+fClusters.addInput(params.clusters, "spread", { min: 0, max: 0.2, step: 0.01 });
+
+function drawCluster(x: number, y: number) {
   const oldlw = ctx.lineWidth;
-
-  // draw one of each bitmap stroke
-  // for (let i = 0; i < 6; i++) {
-  //   ctx.translate(i / 6.0, 0.2);
-  //   strokeImage(ctx, i);
-  //   ctx.translate(-i / 6.0, -0.2);
-  // }
-
-  const x = rand(0.02, 0.98);
-  const y = rand(0.02, 0.98);
   const ang =
     (1.0 - params.verticality) * 90.0 +
     rand(-params.angleVariation, params.angleVariation);
 
   const linewidth = (y * y * params.thickness) / 10.0; //rand(0.01, 0.1);
   ctx.translate(x, y);
+
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
   if (params.strokeType === 0) {
     ctx.lineWidth = linewidth;
-    triad(ctx, params.multiplicity, curvy2, 0.01, 0);
+    const triadspacing = 0.01;
+    triad(ctx, params.multiplicity, curvy2, triadspacing, 0);
   } else {
     const oldAlpha = ctx.globalAlpha;
     ctx.globalAlpha = y + params.thickness;
@@ -169,6 +174,33 @@ function render(_t: DOMHighResTimeStamp) {
   ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
   // ctx.stroke();
   ctx.lineWidth = oldlw;
+}
+
+let lastx = 0;
+let lasty = 0;
+let clusteri = 0;
+function render(_t: DOMHighResTimeStamp) {
+  // draw one of each bitmap stroke
+  // for (let i = 0; i < 6; i++) {
+  //   ctx.translate(i / 6.0, 0.2);
+  //   strokeImage(ctx, i);
+  //   ctx.translate(-i / 6.0, -0.2);
+  // }
+
+  let x = 0,
+    y = 0;
+  if (clusteri === 0) {
+    x = rand(0.02, 0.98);
+    y = rand(0.02, 0.98);
+    lastx = x;
+    lasty = y;
+  } else {
+    x = lastx + rand(-params.clusters.spread, params.clusters.spread);
+    y = lasty + rand(-params.clusters.spread, params.clusters.spread);
+  }
+  clusteri = (clusteri + 1) % params.clusters.size;
+
+  drawCluster(x, y);
 
   if (params.isDrawing) {
     window.requestAnimationFrame(render);
