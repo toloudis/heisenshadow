@@ -16,6 +16,7 @@ import "./style.css";
 const params = {
   thickness: 0.03,
   uniformity: 0.7,
+  verticality: 1.0,
   angleVariation: 8.0,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
@@ -60,6 +61,11 @@ loadStrokeAssets(ctx);
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
 
+pane.addInput(params, "verticality", {
+  min: 0,
+  max: 1,
+  step: 0.01,
+});
 pane.addInput(params, "angleVariation", {
   min: 0,
   max: 100,
@@ -141,8 +147,11 @@ function render(_t: DOMHighResTimeStamp) {
 
   const x = rand(0.02, 0.98);
   const y = rand(0.02, 0.98);
-  const ang = rand(-params.angleVariation, params.angleVariation);
-  const linewidth = (y * params.thickness) / 10.0; //rand(0.01, 0.1);
+  const ang =
+    (1.0 - params.verticality) * 90.0 +
+    rand(-params.angleVariation, params.angleVariation);
+
+  const linewidth = (y * y * params.thickness) / 10.0; //rand(0.01, 0.1);
   ctx.translate(x, y);
   ctx.rotate((ang * Math.PI) / 180);
   ctx.lineWidth = linewidth;
