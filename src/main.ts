@@ -145,7 +145,7 @@ fMarks.addInput(params, "multiplicity", {
 const fClusters = pane.addFolder({
   title: "Clusters",
 });
-fClusters.addInput(params.clusters, "size", { min: 0, max: 100, step: 1 });
+fClusters.addInput(params.clusters, "size", { min: 1, max: 100, step: 1 });
 fClusters.addInput(params.clusters, "spread", { min: 0, max: 0.2, step: 0.01 });
 
 function drawCluster(x: number, y: number) {
