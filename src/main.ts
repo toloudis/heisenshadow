@@ -12,6 +12,7 @@ import {
 } from "./strokes";
 
 import "./style.css";
+import { VoronoiDiagram, createVoronoiFromRandomPoints } from "./voronoi";
 
 const params = {
   thickness: 0.03,
@@ -28,6 +29,7 @@ const params = {
     spread: 0.04,
   },
 };
+let voronoi: VoronoiDiagram;
 
 function setCanvasSize(
   canvas: HTMLCanvasElement,
@@ -49,6 +51,9 @@ function setCanvasSize(
   context.setTransform(w, 0, 0, h, 0, 0);
   //context.scale(canvas.width, canvas.height);
   context.lineWidth = 0.001;
+
+  // regenerate the voronoi cells
+  voronoi = createVoronoiFromRandomPoints(w, h, 1024);
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;

@@ -35,7 +35,7 @@ function distToSegment(
   return Math.sqrt(distToSegmentSquared(p, v, w));
 }
 
-interface VoronoiOptions {
+export interface VoronoiOptions {
   width: number;
   height: number;
   pointsxy: { x: number; y: number }[];
@@ -50,7 +50,25 @@ const defaultOpts: VoronoiOptions = {
   relaxIterations: 8,
 };
 
-function createVoronoiDiagram(opts: VoronoiOptions) {
+export interface VCell {
+  points: [number, number][];
+  innerCircleRadius: number;
+  centroid: { x: number; y: number };
+}
+
+export interface VNCell {
+  points: [number, number][];
+  innerCircleRadius: number;
+  centroid: { x: number; y: number };
+  neighbors: VCell[];
+}
+
+export type VoronoiDiagram = {
+  cells: VNCell[];
+  points: { x: number; y: number }[];
+};
+
+export function createVoronoiDiagram(opts: VoronoiOptions): VoronoiDiagram {
   opts = Object.assign({}, defaultOpts, opts);
 
   opts.points = opts.pointsxy.map((point: { x: number; y: number }) => [
@@ -91,17 +109,6 @@ function createVoronoiDiagram(opts: VoronoiOptions) {
     });
   }
 
-  interface VCell {
-    points: [number, number][];
-    innerCircleRadius: number;
-    centroid: { x: number; y: number };
-  }
-  interface VNCell {
-    points: [number, number][];
-    innerCircleRadius: number;
-    centroid: { x: number; y: number };
-    neighbors: VCell[];
-  }
   let cells: VNCell[] = [];
 
   for (let i = 0; i < delaunay.points.length; i += 2) {
@@ -190,33 +197,35 @@ function random(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }
 
-const width = 1024;
-const height = 1024;
+export function createVoronoiFromRandomPoints(
+  width: number,
+  height: number,
+  npts: number
+): VoronoiDiagram {
+  const points: { x: number; y: number }[] = [...Array(npts)].map(() => {
+    return {
+      x: random(0, width),
+      y: random(0, height),
+    };
+  });
+  return createVoronoiDiagram({
+    // The width of our canvas/drawing space
+    width,
+    // The height of our canvas/drawing space
+    height,
+    // The generating points we just created
+    pointsxy: points,
+    points: [],
+    // How much we should "even out" our cell dimensions
+    relaxIterations: 6,
+  });
+}
 
-const points: { x: number; y: number }[] = [...Array(1024)].map(() => {
-  return {
-    x: random(0, width),
-    y: random(0, height),
-  };
-});
+// const debug = true;
 
-const tessellation = createVoronoiDiagram({
-  // The width of our canvas/drawing space
-  width,
-  // The height of our canvas/drawing space
-  height,
-  // The generating points we just created
-  pointsxy: points,
-  points: [],
-  // How much we should "even out" our cell dimensions
-  relaxIterations: 6,
-});
-
-const debug = true;
-
-const svg = SVG().viewbox(0, 0, width, height);
-tessellation.cells.forEach((cell) => {
-  if (debug) {
-    svg.polygon(cell.points).fill("none").stroke("#1D1934");
-  }
-});
+// const svg = SVG().viewbox(0, 0, width, height);
+// tessellation.cells.forEach((cell) => {
+//   if (debug) {
+//     svg.polygon(cell.points).fill("none").stroke("#1D1934");
+//   }
+// });
