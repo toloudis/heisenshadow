@@ -29,6 +29,7 @@ const params = {
     spread: 0.04,
   },
 };
+const nVoronoiCells = 1024;
 let voronoi: VoronoiDiagram;
 
 function setCanvasSize(
@@ -53,7 +54,7 @@ function setCanvasSize(
   context.lineWidth = 0.001;
 
   // regenerate the voronoi cells
-  voronoi = createVoronoiFromRandomPoints(w, h, 1024);
+  voronoi = createVoronoiFromRandomPoints(w, h, nVoronoiCells);
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -88,6 +89,12 @@ pane
     ctx.fillStyle = "rgba(255,255,255,1)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = oldFill;
+
+    voronoi = createVoronoiFromRandomPoints(
+      canvas.width,
+      canvas.height,
+      nVoronoiCells
+    );
   });
 
 const fMarks = pane.addFolder({
