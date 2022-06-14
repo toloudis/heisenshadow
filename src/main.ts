@@ -54,7 +54,8 @@ function setCanvasSize(
   context.lineWidth = 0.001;
 
   // regenerate the voronoi cells
-  voronoi = createVoronoiFromRandomPoints(w, h, nVoronoiCells);
+  voronoi = createVoronoiFromRandomPoints(1.0, 1.0, nVoronoiCells);
+  //  voronoi = createVoronoiFromRandomPoints(w, h, nVoronoiCells);
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -80,6 +81,9 @@ pane
       window.requestAnimationFrame(render);
     }
   });
+pane.addButton({ title: "Voronoi" }).on("click", () => {
+  drawAllVoronoiCells();
+});
 pane
   .addButton({
     title: "Clear",
@@ -90,11 +94,12 @@ pane
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = oldFill;
 
-    voronoi = createVoronoiFromRandomPoints(
-      canvas.width,
-      canvas.height,
-      nVoronoiCells
-    );
+    // voronoi = createVoronoiFromRandomPoints(
+    //   canvas.width,
+    //   canvas.height,
+    //   nVoronoiCells
+    // );
+    voronoi = createVoronoiFromRandomPoints(1.0, 1.0, nVoronoiCells);
   });
 
 const fMarks = pane.addFolder({
@@ -160,6 +165,22 @@ const fClusters = pane.addFolder({
 fClusters.addInput(params.clusters, "size", { min: 1, max: 100, step: 1 });
 fClusters.addInput(params.clusters, "spread", { min: 0, max: 0.2, step: 0.01 });
 
+function drawAllVoronoiCells() {
+  for (const cell of voronoi.cells) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cell.points[0][0], cell.points[0][1]);
+    for (let i = 1; i < cell.points.length; i++) {
+      ctx.lineTo(cell.points[i][0], cell.points[i][1]);
+    }
+    ctx.closePath();
+    //ctx.stroke();
+    ctx.clip();
+    drawCluster(cell.centroid.x, cell.centroid.y);
+    ctx.restore();
+  }
+}
+
 function drawCluster(x: number, y: number) {
   const oldlw = ctx.lineWidth;
   const ang =
@@ -213,6 +234,9 @@ function render(_t: DOMHighResTimeStamp) {
   clusteri = (clusteri + 1) % params.clusters.size;
 
   drawCluster(x, y);
+
+  // draw all voronoi cells
+  //drawAllVoronoiCells();
 
   if (params.isDrawing) {
     window.requestAnimationFrame(render);
