@@ -92,8 +92,8 @@ export function createVoronoiDiagram(opts: VoronoiOptions): VoronoiDiagram {
 
       const [x1, y1] = polygonCentroid(cell);
 
-      delaunay.points[i] = x0 + (x1 - x0) * 1;
-      delaunay.points[i + 1] = y0 + (y1 - y0) * 1;
+      (delaunay.points as number[])[i] = x0 + (x1 - x0) * 1;
+      (delaunay.points as number[])[i + 1] = y0 + (y1 - y0) * 1;
     }
 
     voronoi.update();
