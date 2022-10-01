@@ -85,7 +85,7 @@ pane
   .on("click", () => {
     params.isDrawing = !params.isDrawing;
     if (params.isDrawing) {
-      window.requestAnimationFrame(render_radial);
+      window.requestAnimationFrame(false ? render : render_radial);
       //window.requestAnimationFrame(render);
     }
   });
@@ -93,7 +93,7 @@ pane.addButton({ title: "Voronoi" }).on("click", () => {
   drawAllVoronoiCells();
 });
 pane.addButton({ title: "Voronoi Radial" }).on("click", () => {
-  drawAllVoronoiCells_Radial();
+  drawAllVoronoiCells_Radial(1.0);
 });
 pane
   .addButton({
