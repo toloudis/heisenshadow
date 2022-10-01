@@ -1,5 +1,6 @@
 import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
+import { ButtonGridApi } from "@tweakpane/plugin-essentials/dist/types/button-grid/api/button-grid";
 
 import { rand } from "./rand";
 import {
@@ -15,7 +16,10 @@ import "./style.css";
 import { VoronoiDiagram, createVoronoiFromRandomPoints } from "./voronoi";
 
 const params = {
+  speed: 50,
+  clearInBetween: true,
   thickness: 0.03,
+  thicknessVariation: 0.0,
   uniformity: 0.7,
   verticality: 1.0,
   angleVariation: 8.0,
@@ -24,6 +28,7 @@ const params = {
   strokeType: 0,
   multiplicity: 3,
   linelength: 0.03,
+  linelengthVariation: 0.0,
   clusters: {
     size: 1,
     spread: 0.04,
@@ -110,6 +115,13 @@ pane
     voronoi = createVoronoiFromRandomPoints(1.0, 1.0, nVoronoiCells);
   });
 
+const fAnimation = pane.addFolder({ title: "Animation" });
+fAnimation.addInput(params, "speed", { min: 0.0, max: 100.0, step: 1 });
+fAnimation.addInput(params, "clearInBetween");
+
+// line length variation
+// stroke taper (-1..1)
+
 const fMarks = pane.addFolder({
   title: "Marks",
 });
@@ -129,6 +141,11 @@ fMarks.addInput(params, "thickness", {
   max: 0.1,
   step: 0.001,
 });
+fMarks.addInput(params, "thicknessVariation", {
+  min: 0,
+  max: 1,
+  step: 0.01,
+});
 fMarks
   .addInput(params, "linelength", {
     min: 0,
@@ -136,7 +153,16 @@ fMarks
     step: 0.001,
   })
   .on("change", () => {
-    setCurveSize(0.03, params.linelength);
+    setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
+  });
+fMarks
+  .addInput(params, "linelengthVariation", {
+    min: 0,
+    max: 1.0,
+    step: 0.01,
+  })
+  .on("change", () => {
+    setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   });
 fMarks
   .addInput(params, "uniformity", {
@@ -172,6 +198,53 @@ const fClusters = pane.addFolder({
 });
 fClusters.addInput(params.clusters, "size", { min: 1, max: 100, step: 1 });
 fClusters.addInput(params.clusters, "spread", { min: 0, max: 0.2, step: 0.01 });
+
+pane.addButton({ title: "Save Settings" }).on("click", () => {
+  const anchor = document.createElement("a");
+  anchor.href = URL.createObjectURL(
+    new Blob([JSON.stringify(params, null, 2)], {
+      type: "text/plain",
+    })
+  );
+  anchor.download = "settings.json";
+  anchor.click();
+});
+
+pane.addButton({ title: "Load Settings" }).on("click", () => {
+  const fileinput: HTMLInputElement = document.createElement("input");
+  fileinput.type = "file";
+  fileinput.style.display = "none";
+  fileinput.addEventListener("change", (e: Event) => {
+    const reader = new FileReader();
+    reader.onload = (event: ProgressEvent<FileReader>) => {
+      const obj = JSON.parse(event?.target?.result as string);
+      params.angleVariation = obj.angleVariation;
+      params.clearInBetween = obj.clearInBetween;
+      params.speed = obj.speed;
+      params.clearInBetween = obj.clearInBetween;
+      params.thickness = obj.thickness;
+      params.thicknessVariation = obj.thicknessVariation;
+      params.uniformity = obj.uniformity;
+      params.verticality = obj.verticality;
+      params.angleVariation = obj.angleVariation;
+      params.isDrawing = obj.isDrawing;
+      params.canvasAspect = obj.canvasAspect;
+      params.strokeType = obj.strokeType;
+      params.multiplicity = obj.multiplicity;
+      params.linelength = obj.linelength;
+      params.linelengthVariation = obj.linelengthVariation;
+      params.clusters.size = obj.clusters.size;
+      params.clusters.spread = obj.clusters.spread;
+      // update ui
+      pane.refresh();
+    };
+    const files = (e.target as HTMLInputElement).files;
+    if (files !== null) {
+      reader.readAsText(files[0]);
+    }
+  });
+  fileinput.click();
+});
 
 function drawAllVoronoiCells() {
   for (const cell of voronoi.cells) {
@@ -215,7 +288,13 @@ function drawAllVoronoiCells_Radial(spiralness: number) {
       ((theta + r * spiralness) / Math.PI) * 180.0 +
       rand(-params.angleVariation, params.angleVariation);
 
-    const linewidth = (r * params.thickness) / 10.0; //rand(0.01, 0.1);
+    const thickness =
+      params.thickness +
+      rand(
+        -params.thicknessVariation * params.thickness,
+        params.thicknessVariation * params.thickness
+      );
+    const linewidth = (r * thickness) / 10.0; //rand(0.01, 0.1);
     //(Math.cos(r * 4) * Math.cos(r * 4) * params.thickness) / 10.0; //rand(0.01, 0.1);
 
     drawClusterParams(cell.centroid.x, cell.centroid.y, ang, linewidth);
@@ -295,7 +374,9 @@ function render(_t: DOMHighResTimeStamp) {
   }
 }
 
+// stateful variables
 let framenum = 0;
+let framet = 0;
 function render_radial(_t: DOMHighResTimeStamp) {
   // draw one of each bitmap stroke
   // for (let i = 0; i < 6; i++) {
@@ -304,8 +385,13 @@ function render_radial(_t: DOMHighResTimeStamp) {
   //   ctx.translate(-i / 6.0, -0.2);
   // }
 
-  clear();
-  drawAllVoronoiCells_Radial(framenum / 10.0);
+  if (params.clearInBetween) {
+    clear();
+  }
+  framenum = framenum + 1;
+  const delta = 0.001 * (params.speed + 1.0);
+  framet = framet + delta;
+  drawAllVoronoiCells_Radial(framet);
   framenum = framenum + 1;
 
   // draw all voronoi cells

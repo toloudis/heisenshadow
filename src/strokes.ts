@@ -7,30 +7,41 @@ import assetUrl3 from "./assets/strokes-3.png";
 import assetUrl4 from "./assets/strokes-4.png";
 import assetUrl5 from "./assets/strokes-5.png";
 
+let curveLengthVariation = 0.0;
 let curveVariability = 0.25;
 let curvesizex = 0.03;
 let curvesizey = 0.03;
 const strokeImages: HTMLImageElement[] = [];
 const strokePatterns: CanvasPattern[] = [];
 
-export function setCurveSize(sizex: number, sizey: number) {
+export function setCurveSize(
+  sizex: number,
+  sizey: number,
+  _variationx: number,
+  variationy: number
+) {
   curvesizex = sizex;
   curvesizey = sizey;
+  curveLengthVariation = variationy;
 }
 export function setCurveUniformity(uniformity: number) {
   curveVariability = 1.0 - uniformity;
 }
 
 export function curvy2(ctx: CanvasRenderingContext2D) {
-  ctx.moveTo(0.0 * curvesizex, -1.0 * curvesizey);
+  // adjust size based on curve length variation
+  const sizey =
+    curvesizey +
+    curvesizey * rand(-curveLengthVariation * 0.5, curveLengthVariation * 0.5);
+  // adjust control point angles based on variability
+  ctx.moveTo(0.0 * curvesizex, -1.0 * sizey);
   ctx.bezierCurveTo(
     0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
-    -0.333 * curvesizey +
-      curvesizey * rand(-curveVariability, curveVariability),
+    -0.333 * sizey + sizey * rand(-curveVariability, curveVariability),
     0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
-    0.333 * curvesizey + curvesizey * rand(-curveVariability, curveVariability),
+    0.333 * sizey + sizey * rand(-curveVariability, curveVariability),
     0.0 * curvesizex,
-    1.0 * curvesizey
+    1.0 * sizey
   );
   ctx.stroke();
   ctx.moveTo(0, 0);
