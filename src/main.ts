@@ -69,6 +69,13 @@ window.addEventListener("resize", () => {
 });
 loadStrokeAssets(ctx);
 
+function clear() {
+  const oldFill = ctx.fillStyle;
+  ctx.fillStyle = "rgba(255,255,255,1)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = oldFill;
+}
+
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
 pane
@@ -78,21 +85,22 @@ pane
   .on("click", () => {
     params.isDrawing = !params.isDrawing;
     if (params.isDrawing) {
-      window.requestAnimationFrame(render);
+      window.requestAnimationFrame(render_radial);
+      //window.requestAnimationFrame(render);
     }
   });
 pane.addButton({ title: "Voronoi" }).on("click", () => {
   drawAllVoronoiCells();
+});
+pane.addButton({ title: "Voronoi Radial" }).on("click", () => {
+  drawAllVoronoiCells_Radial();
 });
 pane
   .addButton({
     title: "Clear",
   })
   .on("click", () => {
-    const oldFill = ctx.fillStyle;
-    ctx.fillStyle = "rgba(255,255,255,1)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = oldFill;
+    clear();
 
     // voronoi = createVoronoiFromRandomPoints(
     //   canvas.width,
@@ -181,13 +189,48 @@ function drawAllVoronoiCells() {
   }
 }
 
-function drawCluster(x: number, y: number) {
-  const oldlw = ctx.lineWidth;
-  const ang =
-    (1.0 - params.verticality) * 90.0 +
-    rand(-params.angleVariation, params.angleVariation);
+function drawAllVoronoiCells_Radial(spiralness: number) {
+  for (const cell of voronoi.cells) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cell.points[0][0], cell.points[0][1]);
+    for (let i = 1; i < cell.points.length; i++) {
+      ctx.lineTo(cell.points[i][0], cell.points[i][1]);
+    }
+    ctx.closePath();
+    //ctx.stroke();
+    ctx.clip();
 
-  const linewidth = (y * y * params.thickness) / 10.0; //rand(0.01, 0.1);
+    // look at centroid;
+    // check radius from center of screen.
+    const relativeCentroidX = cell.centroid.x - 0.5;
+    const relativeCentroidY = cell.centroid.y - 0.5;
+    const theta = Math.atan2(relativeCentroidY, relativeCentroidX);
+    const r = Math.sqrt(
+      relativeCentroidX * relativeCentroidX +
+        relativeCentroidY * relativeCentroidY
+    );
+    //const spiralness = 1.0 / 0.2;
+    const ang =
+      ((theta + r * spiralness) / Math.PI) * 180.0 +
+      rand(-params.angleVariation, params.angleVariation);
+
+    const linewidth = (r * params.thickness) / 10.0; //rand(0.01, 0.1);
+    //(Math.cos(r * 4) * Math.cos(r * 4) * params.thickness) / 10.0; //rand(0.01, 0.1);
+
+    drawClusterParams(cell.centroid.x, cell.centroid.y, ang, linewidth);
+    ctx.restore();
+  }
+}
+
+function drawClusterParams(
+  x: number,
+  y: number,
+  ang: number,
+  linewidth: number
+) {
+  const oldlw = ctx.lineWidth;
+
   ctx.translate(x, y);
 
   ctx.rotate((ang * Math.PI) / 180);
@@ -207,6 +250,15 @@ function drawCluster(x: number, y: number) {
   ctx.setTransform(canvas.width, 0, 0, canvas.height, 0, 0);
   // ctx.stroke();
   ctx.lineWidth = oldlw;
+}
+
+function drawCluster(x: number, y: number) {
+  const ang =
+    (1.0 - params.verticality) * 90.0 +
+    rand(-params.angleVariation, params.angleVariation);
+
+  const linewidth = (y * y * params.thickness) / 10.0; //rand(0.01, 0.1);
+  drawClusterParams(x, y, ang, linewidth);
 }
 
 let lastx = 0;
@@ -240,5 +292,26 @@ function render(_t: DOMHighResTimeStamp) {
 
   if (params.isDrawing) {
     window.requestAnimationFrame(render);
+  }
+}
+
+let framenum = 0;
+function render_radial(_t: DOMHighResTimeStamp) {
+  // draw one of each bitmap stroke
+  // for (let i = 0; i < 6; i++) {
+  //   ctx.translate(i / 6.0, 0.2);
+  //   strokeImage(ctx, i);
+  //   ctx.translate(-i / 6.0, -0.2);
+  // }
+
+  clear();
+  drawAllVoronoiCells_Radial(framenum / 10.0);
+  framenum = framenum + 1;
+
+  // draw all voronoi cells
+  //drawAllVoronoiCells();
+
+  if (params.isDrawing) {
+    window.requestAnimationFrame(render_radial);
   }
 }
