@@ -105,3 +105,34 @@ export function strokeImage(ctx: CanvasRenderingContext2D, index: number) {
     curvesizey * 2.0
   );
 }
+
+export function drawClusterParams(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  ang: number,
+  linewidth: number,
+  multiplicity: number
+) {
+  const oldlw = ctx.lineWidth;
+
+  ctx.translate(x, y);
+
+  ctx.rotate((ang * Math.PI) / 180);
+  ctx.lineWidth = linewidth;
+
+  const triadspacing = 0.01;
+  triad(ctx, multiplicity, curvy2, triadspacing, 0);
+
+  // } else {
+  //   const oldAlpha = ctx.globalAlpha;
+  //   ctx.globalAlpha = y + params.thickness;
+  //   strokeImage(ctx, params.strokeType - 1);
+  //   ctx.globalAlpha = oldAlpha;
+  // }
+  ctx.rotate((-ang * Math.PI) / 180);
+  ctx.translate(-x, -y);
+  ctx.setTransform(ctx.canvas.width, 0, 0, ctx.canvas.height, 0, 0);
+  // ctx.stroke();
+  ctx.lineWidth = oldlw;
+}
