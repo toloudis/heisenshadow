@@ -51,6 +51,15 @@ export class VoronoiRadialRenderer implements Renderer {
     voronoi: VoronoiDiagram
   ) {
     for (const cell of voronoi.cells) {
+      // if cell is close to edge, then skip it
+      if (
+        cell.centroid.x < params.border ||
+        cell.centroid.x > 1.0 - params.border ||
+        cell.centroid.y < params.border ||
+        cell.centroid.y > 1.0 - params.border
+      ) {
+        continue;
+      }
       ctx.save();
       // dilate away from centroid to expand the cell
       const dilation = params.dilation * 0.01;

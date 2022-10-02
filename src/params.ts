@@ -2,6 +2,7 @@ const params = {
   mode: 0,
   speed: 5,
   dilation: 0.0,
+  border: 0.08,
   clearInBetween: true,
   thickness: 0.03,
   thicknessVariation: 0.0,

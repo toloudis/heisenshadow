@@ -177,6 +177,7 @@ fMarks.addInput(params, "multiplicity", {
     "4": 4,
   },
 });
+fMarks.addInput(params, "border", { min: 0, max: 0.2, step: 0.01 });
 
 const fClusters = pane.addFolder({
   title: "Clusters",
