@@ -11,8 +11,9 @@ import {
 
 import "./style.css";
 import { Canvas } from "./canvas";
-import { params } from "./params";
+import { loadParamsFromObj, params } from "./params";
 import { VoronoiRadialRenderer } from "./voronoiRadialRenderer";
+import { VoronoiRadialRendererRetained } from "./voronoiRadialRendererRetained";
 
 /** BEGIN IFDEF
 let lastx = 0;
@@ -52,7 +53,7 @@ END IFDEF */
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const paper = new Canvas(canvas, params.canvasAspect);
-const voronoiRenderer = new VoronoiRadialRenderer(paper);
+const voronoiRenderer = new VoronoiRadialRendererRetained(paper);
 paper.setRenderer(voronoiRenderer);
 
 //loadStrokeAssets(paper.ctx);
@@ -178,7 +179,10 @@ fMarks.addInput(params, "multiplicity", {
   },
 });
 fMarks.addInput(params, "border", { min: 0, max: 0.2, step: 0.01 });
-
+fMarks.addInput(params.radialVoronoi, "center", {
+  x: { min: -1, max: 1 },
+  y: { min: -1, max: 1 },
+});
 const fClusters = pane.addFolder({
   title: "Clusters",
 });
@@ -204,23 +208,7 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
     const reader = new FileReader();
     reader.onload = (event: ProgressEvent<FileReader>) => {
       const obj = JSON.parse(event?.target?.result as string);
-      params.angleVariation = obj.angleVariation;
-      params.clearInBetween = obj.clearInBetween;
-      params.speed = obj.speed;
-      params.clearInBetween = obj.clearInBetween;
-      params.thickness = obj.thickness;
-      params.thicknessVariation = obj.thicknessVariation;
-      params.uniformity = obj.uniformity;
-      params.verticality = obj.verticality;
-      params.angleVariation = obj.angleVariation;
-      params.isDrawing = obj.isDrawing;
-      params.canvasAspect = obj.canvasAspect;
-      params.strokeType = obj.strokeType;
-      params.multiplicity = obj.multiplicity;
-      params.linelength = obj.linelength;
-      params.linelengthVariation = obj.linelengthVariation;
-      params.clusters.size = obj.clusters.size;
-      params.clusters.spread = obj.clusters.spread;
+      loadParamsFromObj(obj);
       // update ui
       pane.refresh();
     };

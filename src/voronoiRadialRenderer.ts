@@ -76,8 +76,10 @@ export class VoronoiRadialRenderer implements Renderer {
       if (params.mode === 0) {
         // look at centroid;
         // check radius from center of screen.
-        const relativeCentroidX = cell.centroid.x - 0.5;
-        const relativeCentroidY = cell.centroid.y - 0.5;
+        const relativeCentroidX =
+          cell.centroid.x - params.radialVoronoi.center.x * 0.5 - 0.5;
+        const relativeCentroidY =
+          cell.centroid.y - params.radialVoronoi.center.y * 0.5 - 0.5;
         const theta = Math.atan2(relativeCentroidY, relativeCentroidX);
         const r = Math.sqrt(
           relativeCentroidX * relativeCentroidX +
