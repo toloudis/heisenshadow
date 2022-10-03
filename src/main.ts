@@ -53,7 +53,7 @@ END IFDEF */
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const paper = new Canvas(canvas, params.canvasAspect);
-const voronoiRenderer = new VoronoiRadialRendererRetained(paper);
+const voronoiRenderer = new VoronoiRadialRenderer(paper);
 paper.setRenderer(voronoiRenderer);
 
 //loadStrokeAssets(paper.ctx);
@@ -61,9 +61,16 @@ paper.setRenderer(voronoiRenderer);
 const pane = new Pane();
 pane.registerPlugin(EssentialsPlugin);
 pane.addButton({ title: "Voronoi" }).on("click", () => {
+  paper.setRenderer(voronoiRenderer);
   params.mode = 1;
 });
 pane.addButton({ title: "Voronoi Radial" }).on("click", () => {
+  paper.setRenderer(voronoiRenderer);
+  params.mode = 0;
+});
+pane.addButton({ title: "Retained" }).on("click", () => {
+  const r = new VoronoiRadialRendererRetained(paper);
+  paper.setRenderer(r);
   params.mode = 0;
 });
 pane

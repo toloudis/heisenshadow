@@ -28,7 +28,7 @@ export class VoronoiRadialRendererRetained implements Renderer {
   resize(_w: number, _h: number) {
     const nVoronoiCells = 1024; // TODO parameter!
     this.voronoi = createVoronoiFromRandomPoints(1.0, 1.0, nVoronoiCells);
-    this.predraw(5.0); // TODO parameter!
+    this.predraw(45.0); // TODO parameter!
   }
 
   predraw(spiralness: number) {
