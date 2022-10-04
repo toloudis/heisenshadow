@@ -60,6 +60,7 @@ export class VoronoiRadialRendererRetained implements Renderer {
       //(Math.cos(r * 4) * Math.cos(r * 4) * params.thickness) / 10.0; //rand(0.01, 0.1);
 
       const cluster = new Cluster();
+      cluster.voronoiCell = cell;
       cluster.x = cell.centroid.x;
       cluster.y = cell.centroid.y;
       cluster.ang = ang;
@@ -92,11 +93,11 @@ export class VoronoiRadialRendererRetained implements Renderer {
   private draw(
     ctx: CanvasRenderingContext2D,
     t: number,
-    voronoi: VoronoiDiagram
+    _voronoi: VoronoiDiagram
   ) {
-    for (let i = 0; i < voronoi.cells.length; ++i) {
-      const cell = voronoi.cells[i];
+    for (let i = 0; i < this.clusters.length; ++i) {
       const cluster = this.clusters[i];
+      const cell = cluster.voronoiCell;
       // if cell is close to edge, then skip it
       if (
         cell.centroid.x < params.border ||

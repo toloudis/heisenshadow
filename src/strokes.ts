@@ -6,6 +6,7 @@ import assetUrl2 from "./assets/strokes-2.png";
 import assetUrl3 from "./assets/strokes-3.png";
 import assetUrl4 from "./assets/strokes-4.png";
 import assetUrl5 from "./assets/strokes-5.png";
+import { VNCell } from "./voronoi";
 
 let curveLengthVariation = 0.0;
 let curveVariability = 0.25;
@@ -178,6 +179,12 @@ export class Stroke {
 }
 
 export class Cluster {
+  public voronoiCell: VNCell = {
+    points: [],
+    innerCircleRadius: 0,
+    centroid: { x: 0, y: 0 },
+    neighbors: [],
+  };
   public x: number = 0;
   public y: number = 0;
   public ang: number = 0;

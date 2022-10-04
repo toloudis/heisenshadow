@@ -66,6 +66,7 @@ export interface VNCell {
 export type VoronoiDiagram = {
   cells: VNCell[];
   points: { x: number; y: number }[];
+  delaunay: Delaunay<Delaunay.Point>;
 };
 
 export function createVoronoiDiagram(opts: VoronoiOptions): VoronoiDiagram {
@@ -135,6 +136,7 @@ export function createVoronoiDiagram(opts: VoronoiOptions): VoronoiDiagram {
       return cell;
     }),
     points: diagramPoints,
+    delaunay: delaunay,
   };
 }
 
