@@ -68,6 +68,11 @@ export class Canvas {
     this.ctx.setTransform(w, 0, 0, h, 0, 0);
     //context.scale(canvas.width, canvas.height);
     this.ctx.lineWidth = 0.001;
+    //this.ctx.filter = "blur(0.5px)";
+    this.ctx.shadowBlur = 0; // 0.01;
+    this.ctx.shadowColor = "rgb(0, 0, 0)";
+    this.ctx.lineCap = "round";
+    this.ctx.lineJoin = "round";
 
     if (this.renderer) {
       this.renderer.resize(w, h);
