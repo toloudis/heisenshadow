@@ -10,10 +10,12 @@ export class VoronoiRadialRendererRetained implements Renderer {
   private framet: number;
   private voronoi: VoronoiDiagram;
   private clusters: Cluster[];
+  private inCell: number = -1;
 
   constructor(paper: Canvas) {
     this.clusters = [];
     this.framet = 0;
+    this.inCell = -1;
     // trivial voronoi diagram for typescript
     this.voronoi = createVoronoiFromRandomPoints(1.0, 1.0, 1);
     this.resize(paper.width(), paper.height());
@@ -136,5 +138,43 @@ export class VoronoiRadialRendererRetained implements Renderer {
 
       ctx.restore();
     }
+  }
+
+  pointerMove(_e: PointerEvent, relx: number, rely: number): boolean {
+    const i = this.voronoi.delaunay.find(relx, rely);
+    if (this.inCell === i) {
+      return false;
+    }
+    this.inCell = i;
+    const cell = this.voronoi.cells[i];
+    const cluster = new Cluster();
+    cluster.voronoiCell = cell;
+    cluster.x = cell.centroid.x;
+    cluster.y = cell.centroid.y;
+
+    const ang =
+      rand(-params.angleVariation, params.angleVariation) + params.verticality;
+
+    const thickness =
+      params.thickness +
+      rand(
+        -params.thicknessVariation * params.thickness,
+        params.thicknessVariation * params.thickness
+      );
+    const linewidth = thickness / 10.0; //rand(0.01, 0.1);
+
+    cluster.ang = ang;
+    cluster.linewidth = linewidth;
+    cluster.multiplicity = params.multiplicity;
+    for (let i = 0; i < params.multiplicity; ++i) {
+      cluster.strokes.push(new Stroke());
+    }
+    this.clusters.push(cluster);
+    console.log("added cluster");
+    return true;
+  }
+
+  clear(_ctx: CanvasRenderingContext2D) {
+    this.clusters = [];
   }
 }

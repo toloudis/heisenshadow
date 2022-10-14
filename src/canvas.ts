@@ -10,13 +10,16 @@ export class Canvas {
   private animationId: number;
   private renderer?: Renderer;
   private lastTime: DOMHighResTimeStamp;
+  private isPainting: boolean;
 
   constructor(canvas: HTMLCanvasElement, paperAspect: number) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
-    this.ctx.lineJoin = this.ctx.lineCap = "round";
     this.ctx.shadowBlur = 0; // 0.01;
     this.ctx.shadowColor = "rgb(0, 0, 0)";
+    this.ctx.lineCap = "round";
+    this.ctx.lineJoin = "round";
+    //this.ctx.globalCompositeOperation = "destination-over";
 
     this.paperAspect = paperAspect;
     this.isDrawing = false;
@@ -24,12 +27,30 @@ export class Canvas {
     this.autoClear = true;
     this.animationId = 0;
     this.lastTime = 0;
+
+    this.isPainting = false;
+
     this.setCanvasSize();
     window.addEventListener("resize", () => {
       this.setCanvasSize();
     });
+
+    this.getCanvas().addEventListener(
+      "pointerdown",
+      this.pointerDown.bind(this)
+    );
+
+    this.getCanvas().addEventListener(
+      "pointermove",
+      this.pointerMove.bind(this)
+    );
+
+    this.getCanvas().addEventListener("pointerup", this.pointerUp.bind(this));
   }
 
+  public getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
   private setCanvasSize() {
     const windowAspect = window.innerWidth / window.innerHeight;
     let w = window.innerWidth;
@@ -98,6 +119,9 @@ export class Canvas {
     this.ctx.fillStyle = oldFill;
   }
 
+  public getRenderer(): Renderer | undefined {
+    return this.renderer;
+  }
   public setRenderer(renderer: Renderer) {
     this.renderer = renderer;
   }
@@ -109,5 +133,24 @@ export class Canvas {
   }
   public height() {
     return this.canvas.height;
+  }
+
+  pointerDown(_e: PointerEvent) {
+    this.isPainting = true;
+  }
+  pointerMove(_e: PointerEvent) {
+    if (!this.isPainting) {
+      return;
+    }
+    const addedStroke = this.renderer?.pointerMove(
+      _e,
+      _e.offsetX / this.canvas.width,
+      _e.offsetY / this.canvas.height
+    );
+    // todo work out how many times to redraw
+    if (addedStroke) window.requestAnimationFrame((t0) => this.animate(t0));
+  }
+  pointerUp(_e: PointerEvent) {
+    this.isPainting = false;
   }
 }

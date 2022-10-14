@@ -17,6 +17,11 @@ export class VoronoiRadialRenderer implements Renderer {
     this.resize(paper.width(), paper.height());
   }
 
+  clear(_ctx: CanvasRenderingContext2D) {}
+  pointerMove(_e: PointerEvent, _relx: number, _rely: number) {
+    return false;
+  }
+
   render(ctx: CanvasRenderingContext2D, dt: number) {
     const delta = 0.0001 * (params.speed + 1.0);
     this.framet = this.framet + delta * dt;

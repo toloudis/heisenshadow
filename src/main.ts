@@ -79,6 +79,9 @@ pane
   })
   .on("click", () => {
     paper.clear();
+    if (paper.getRenderer()) {
+      paper.getRenderer()?.clear(null as unknown as CanvasRenderingContext2D);
+    }
   });
 
 const fAnimation = pane.addFolder({ title: "Animation" });
