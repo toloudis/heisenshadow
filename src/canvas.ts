@@ -18,12 +18,14 @@ export class Canvas {
 
   constructor(canvas: HTMLCanvasElement, paperAspect: number) {
     // TODO swap glcanvas and canvas
-    this.glcanvas = document.createElement("canvas");
+    this.glcanvas = canvas;
+    //this.glcanvas = document.createElement("canvas");
     this.glctx = this.glcanvas.getContext("webgl")!;
     this.gltexture = this.glctx.createTexture()!;
 
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d")!;
+    this.canvas = document.createElement("canvas");
+    //this.canvas = canvas;
+    this.ctx = this.canvas.getContext("2d")!;
     this.ctx.shadowBlur = 0; // 0.01;
     this.ctx.shadowColor = "rgb(0, 0, 0)";
     this.ctx.lineCap = "round";
@@ -139,7 +141,7 @@ export class Canvas {
   }
 
   private setupGL(w: number, h: number) {
-    this.glcanvas = document.createElement("canvas");
+    //this.glcanvas = document.createElement("canvas");
     this.glcanvas.width = w;
     this.glcanvas.height = h;
     this.glctx = this.glcanvas.getContext("webgl")!;
@@ -252,6 +254,7 @@ void main() {
 
   private drawGL() {
     const gl = this.glctx;
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.bindTexture(gl.TEXTURE_2D, this.gltexture);
     gl.texImage2D(
       gl.TEXTURE_2D,
@@ -269,9 +272,12 @@ void main() {
       this.clear();
     }
     this.frameNum = this.frameNum + 1;
+
+    // render strokes into the canvas
     if (this.renderer) {
       this.renderer.render(this.ctx, dt);
     }
+    // send canvas to gl and do gl filtering
     this.drawGL();
   }
 
@@ -283,9 +289,12 @@ void main() {
     const dt = t - this.lastTime;
     this.lastTime = t;
 
+    // render strokes into the canvas
     if (this.renderer) {
       this.renderer.render(this.ctx, dt);
     }
+    // send canvas to gl and do gl filtering
+    this.drawGL();
 
     if (this.isDrawing) {
       this.animationId = window.requestAnimationFrame((t0) => this.animate(t0));
@@ -308,6 +317,7 @@ void main() {
     this.ctx.fillStyle = "rgba(255,255,255,1)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = oldFill;
+    this.drawGL();
   }
 
   public getRenderer(): Renderer | undefined {
