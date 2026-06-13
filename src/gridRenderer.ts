@@ -5,8 +5,15 @@ import { params } from "./params";
 import { rand } from "./rand";
 
 const VERTICALITY_LEVELS = [-0.5, 0, 0.5, 1];
-// Probability that a cell repeats the verticality of its left neighbor.
-const REPEAT_CHANCE = 0.15;
+// Relative weight of each transition from the left neighbor's verticality,
+// keyed by absolute difference. Higher = more likely. Small steps are
+// favored, large jumps are rare, and exact repeats are allowed but unlikely.
+const VERTICALITY_TRANSITION_WEIGHTS: Record<string, number> = {
+  "0": 1, // repeat
+  "0.5": 6, // one step
+  "1": 2, // two steps
+  "1.5": 1, // three steps (full span)
+};
 
 // Strokes are built at this reference half-length (sizex == sizey == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
@@ -137,7 +144,8 @@ export class GridRenderer implements Renderer {
           angleJitter01 = prev.angleJitter01;
           thicknessJitter01 = prev.thicknessJitter01;
         } else {
-          // Pick verticality with a high chance of changing across a row.
+          // Pick verticality with weighted preference for small changes
+          // from the left neighbor.
           if (i === 0) {
             verticality =
               VERTICALITY_LEVELS[
@@ -145,12 +153,22 @@ export class GridRenderer implements Renderer {
               ];
           } else {
             const left = row[i - 1].verticality;
-            if (Math.random() < REPEAT_CHANCE) {
-              verticality = left;
-            } else {
-              const others = VERTICALITY_LEVELS.filter((l) => l !== left);
-              verticality = others[Math.floor(Math.random() * others.length)];
+            const weights = VERTICALITY_LEVELS.map(
+              (l) =>
+                VERTICALITY_TRANSITION_WEIGHTS[Math.abs(l - left).toString()] ??
+                0,
+            );
+            const total = weights.reduce((a, b) => a + b, 0);
+            let r = Math.random() * total;
+            let idx = 0;
+            for (let k = 0; k < weights.length; k++) {
+              r -= weights[k];
+              if (r <= 0) {
+                idx = k;
+                break;
+              }
             }
+            verticality = VERTICALITY_LEVELS[idx];
           }
           angleJitter01 = rand(-1, 1);
           thicknessJitter01 = rand(-1, 1);
@@ -212,8 +230,6 @@ export class GridRenderer implements Renderer {
         const ang = (angDeg * Math.PI) / 180.0;
         const cAng = Math.cos(ang);
         const sAng = Math.sin(ang);
-        const absC = Math.abs(cAng);
-        const absS = Math.abs(sAng);
 
         const thickness =
           params.thickness +
@@ -224,26 +240,50 @@ export class GridRenderer implements Renderer {
         ctx.rotate(ang);
         ctx.lineWidth = linewidth;
 
+        // Stroke direction in screen coords (perpendicular to xOffset axis).
+        const dirX = -sAng;
+        const dirY = cAng;
+
         for (let s = 0; s < mult; s++) {
           const xOffset = (s - (mult - 1) / 2) * triadSpacing;
-          // Compute the max half-length such that a stroke at local
-          // position (xOffset, 0) along local Y fits in the axis-aligned
-          // cell rectangle when rotated by `ang` in screen coords.
-          const A = xOffset * cAng; // contribution of xOffset to screen X
-          const B = xOffset * sAng; // contribution of xOffset to screen Y
-          const tx =
-            absS > 1e-9 ? (halfStrokeW - Math.abs(A)) / absS : Infinity;
-          const ty =
-            absC > 1e-9 ? (halfStrokeH - Math.abs(B)) / absC : Infinity;
-          let maxT = Math.min(tx, ty);
-          if (!isFinite(maxT)) maxT = halfStrokeH;
-          if (maxT <= 0) continue;
+          // Intersect the line through screen-coord midpoint
+          // (xOffset*cAng, xOffset*sAng) with direction (dirX, dirY)
+          // against the cell rectangle [-halfStrokeW, halfStrokeW] x
+          // [-halfStrokeH, halfStrokeH]. The result is an asymmetric range
+          // [sMin, sMax] along the line so the stroke reaches both cell
+          // edges it crosses (not just symmetric around the cell center).
+          const midX = xOffset * cAng;
+          const midY = xOffset * sAng;
 
-          const sc = maxT * (1 + cell.strokeLenVar01[s] * lenVarAmt);
+          let sMin = -Infinity;
+          let sMax = Infinity;
+          if (Math.abs(dirX) > 1e-9) {
+            const sa = (-halfStrokeW - midX) / dirX;
+            const sb = (halfStrokeW - midX) / dirX;
+            sMin = Math.max(sMin, Math.min(sa, sb));
+            sMax = Math.min(sMax, Math.max(sa, sb));
+          } else if (Math.abs(midX) > halfStrokeW) {
+            continue;
+          }
+          if (Math.abs(dirY) > 1e-9) {
+            const sa = (-halfStrokeH - midY) / dirY;
+            const sb = (halfStrokeH - midY) / dirY;
+            sMin = Math.max(sMin, Math.min(sa, sb));
+            sMax = Math.min(sMax, Math.max(sa, sb));
+          } else if (Math.abs(midY) > halfStrokeH) {
+            continue;
+          }
+          if (!(sMax > sMin)) continue;
+
+          const halfLen = (sMax - sMin) * 0.5;
+          const centerS = (sMax + sMin) * 0.5;
+          const sc = halfLen * (1 + cell.strokeLenVar01[s] * lenVarAmt);
           const sk = cell.strokes[s];
 
           ctx.save();
-          ctx.translate(xOffset, 0);
+          // Shift along the local stroke axis to the midpoint of the
+          // in-cell segment, so endpoints land on the cell edges.
+          ctx.translate(xOffset, centerS);
           ctx.beginPath();
           ctx.moveTo(sk.x0 * sc, sk.y0 * sc);
           ctx.bezierCurveTo(
