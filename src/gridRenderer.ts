@@ -4,17 +4,23 @@ import { Stroke, setCurveSize } from "./strokes";
 import { params } from "./params";
 import { rand } from "./rand";
 
-const GRID_CELL_PX = 50;
 const VERTICALITY_LEVELS = [-0.5, 0, 0.5, 1];
 // Probability that a cell repeats the verticality of its left neighbor.
 const REPEAT_CHANCE = 0.15;
+
+// Strokes are built at this reference half-length (sizex == sizey == 1) with
+// no length variation baked in. At draw time we scale each stroke to fit the
+// cell based on its position and angle, optionally with a per-stroke length
+// jitter driven by params.linelengthVariation.
+const REF_SIZE = 1.0;
 
 type GridCell = {
   // randomly chosen per cell, stable across slider changes
   verticality: number; // one of VERTICALITY_LEVELS
   angleJitter01: number; // uniform in [-1, 1], scaled by params.angleVariation at draw time
   thicknessJitter01: number; // uniform in [-1, 1], scaled by params.thicknessVariation at draw time
-  strokes: Stroke[]; // pre-built bezier curves, sized to cell
+  strokes: Stroke[]; // pre-built bezier curves at unit reference size
+  strokeLenVar01: number[]; // per-stroke length jitter in [-1, 1]
 };
 
 export class GridRenderer implements Renderer {
@@ -30,10 +36,12 @@ export class GridRenderer implements Renderer {
   private originX: number = 0;
   private originY: number = 0;
 
-  // Cache invalidation fingerprints
+  // Cache invalidation fingerprints. linelengthVariation is intentionally
+  // omitted: variation is applied at draw time as a scale factor, so changing
+  // it does not require rebuilding strokes.
   private cachedBorder: number = NaN;
   private cachedMultiplicity: number = NaN;
-  private cachedLineLengthVariation: number = NaN;
+  private cachedCellPx: number = NaN;
   private cachedCanvasW: number = 0;
   private cachedCanvasH: number = 0;
 
@@ -65,12 +73,13 @@ export class GridRenderer implements Renderer {
   /**
    * Rebuild the per-cell cache if anything that affects layout or stroke
    * geometry has changed. Other slider changes (thickness, dilation, angle
-   * variation, etc.) reuse the existing cached randomness.
+   * variation, line length variation, etc.) reuse the existing cache.
    */
   private ensureCache() {
-    // grid cell size in normalized (0..1) coords, based on ~50px cells
-    const cellW = GRID_CELL_PX / this.canvasWidth;
-    const cellH = GRID_CELL_PX / this.canvasHeight;
+    // grid cell size in normalized (0..1) coords, based on params.grid.cellPx
+    const cellPx = Math.max(2, params.grid.cellPx);
+    const cellW = cellPx / this.canvasWidth;
+    const cellH = cellPx / this.canvasHeight;
     const cols = Math.max(1, Math.floor((1.0 - 2 * params.border) / cellW));
     const rows = Math.max(1, Math.floor((1.0 - 2 * params.border) / cellH));
 
@@ -88,11 +97,10 @@ export class GridRenderer implements Renderer {
 
     const layoutChanged =
       this.cachedBorder !== params.border ||
+      this.cachedCellPx !== cellPx ||
       this.cachedCanvasW !== this.canvasWidth ||
       this.cachedCanvasH !== this.canvasHeight;
-    const strokesChanged =
-      this.cachedMultiplicity !== params.multiplicity ||
-      this.cachedLineLengthVariation !== params.linelengthVariation;
+    const strokesChanged = this.cachedMultiplicity !== params.multiplicity;
 
     if (
       !layoutChanged &&
@@ -103,9 +111,9 @@ export class GridRenderer implements Renderer {
       return;
     }
 
-    // Set the module-level curve size so Stroke constructors size their
-    // beziers to the cell. We restore curve size after drawing each frame.
-    setCurveSize(stepX * 0.5, stepY * 0.5, 0.0, params.linelengthVariation);
+    // Build strokes at unit reference size with no length variation. We scale
+    // them at draw time to fit each cell.
+    setCurveSize(REF_SIZE, REF_SIZE, 0.0, 0.0);
 
     const mult = Math.max(1, params.multiplicity);
 
@@ -149,8 +157,10 @@ export class GridRenderer implements Renderer {
         }
 
         const strokes: Stroke[] = [];
+        const strokeLenVar01: number[] = [];
         for (let s = 0; s < mult; s++) {
           strokes.push(new Stroke());
+          strokeLenVar01.push(rand(-1, 1));
         }
 
         row.push({
@@ -158,6 +168,7 @@ export class GridRenderer implements Renderer {
           angleJitter01,
           thicknessJitter01,
           strokes,
+          strokeLenVar01,
         });
       }
       newCells.push(row);
@@ -165,20 +176,19 @@ export class GridRenderer implements Renderer {
     this.cells = newCells;
 
     this.cachedBorder = params.border;
+    this.cachedCellPx = cellPx;
     this.cachedCanvasW = this.canvasWidth;
     this.cachedCanvasH = this.canvasHeight;
     this.cachedMultiplicity = params.multiplicity;
-    this.cachedLineLengthVariation = params.linelengthVariation;
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
     const { rows, cols, stepX, stepY, originX, originY } = this;
     const mult = Math.max(1, params.multiplicity);
     const triadSpacing = stepX / mult;
-
-    // Make sure the module-level curve size matches what the cached strokes
-    // were built against (covers the case where another renderer changed it).
-    setCurveSize(stepX * 0.5, stepY * 0.5, 0.0, params.linelengthVariation);
+    const halfStrokeW = stepX * 0.5;
+    const halfStrokeH = stepY * 0.5;
+    const lenVarAmt = params.linelengthVariation * 0.5;
 
     const oldLineWidth = ctx.lineWidth;
     const dilation = params.dilation * 0.01;
@@ -196,9 +206,14 @@ export class GridRenderer implements Renderer {
         ctx.rect(cx - halfW, cy - halfH, halfW * 2, halfH * 2);
         ctx.clip();
 
-        const ang =
+        const angDeg =
           (1.0 - cell.verticality) * 90.0 +
           cell.angleJitter01 * params.angleVariation;
+        const ang = (angDeg * Math.PI) / 180.0;
+        const cAng = Math.cos(ang);
+        const sAng = Math.sin(ang);
+        const absC = Math.abs(cAng);
+        const absS = Math.abs(sAng);
 
         const thickness =
           params.thickness +
@@ -206,20 +221,41 @@ export class GridRenderer implements Renderer {
         const linewidth = (cy * cy * thickness) / 10.0;
 
         ctx.translate(cx, cy);
-        ctx.rotate((ang * Math.PI) / 180);
+        ctx.rotate(ang);
         ctx.lineWidth = linewidth;
 
-        // Inline triad layout using cached Stroke instances so the bezier
-        // shapes don't shimmer across renders.
-        const dx0 = 0.5 * (mult - 1) * -triadSpacing;
-        const dy0 = 0.5 * (mult - 1) * -triadSpacing;
-        ctx.beginPath();
-        ctx.translate(dx0, dy0);
-        cell.strokes[0].draw(ctx);
-        for (let s = 1; s < mult; s++) {
+        for (let s = 0; s < mult; s++) {
+          const xOffset = (s - (mult - 1) / 2) * triadSpacing;
+          // Compute the max half-length such that a stroke at local
+          // position (xOffset, 0) along local Y fits in the axis-aligned
+          // cell rectangle when rotated by `ang` in screen coords.
+          const A = xOffset * cAng; // contribution of xOffset to screen X
+          const B = xOffset * sAng; // contribution of xOffset to screen Y
+          const tx =
+            absS > 1e-9 ? (halfStrokeW - Math.abs(A)) / absS : Infinity;
+          const ty =
+            absC > 1e-9 ? (halfStrokeH - Math.abs(B)) / absC : Infinity;
+          let maxT = Math.min(tx, ty);
+          if (!isFinite(maxT)) maxT = halfStrokeH;
+          if (maxT <= 0) continue;
+
+          const sc = maxT * (1 + cell.strokeLenVar01[s] * lenVarAmt);
+          const sk = cell.strokes[s];
+
+          ctx.save();
+          ctx.translate(xOffset, 0);
           ctx.beginPath();
-          ctx.translate(triadSpacing, 0);
-          cell.strokes[s].draw(ctx);
+          ctx.moveTo(sk.x0 * sc, sk.y0 * sc);
+          ctx.bezierCurveTo(
+            sk.x1 * sc,
+            sk.y1 * sc,
+            sk.x2 * sc,
+            sk.y2 * sc,
+            sk.x3 * sc,
+            sk.y3 * sc,
+          );
+          ctx.stroke();
+          ctx.restore();
         }
 
         // restore the normalized 0..1 transform
@@ -229,7 +265,8 @@ export class GridRenderer implements Renderer {
     }
 
     ctx.lineWidth = oldLineWidth;
-    // restore curve size to whatever the params slider dictates
+    // restore curve size to whatever the params slider dictates for other
+    // renderers that share the module-level state.
     setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   }
 
@@ -238,6 +275,7 @@ export class GridRenderer implements Renderer {
    */
   public reseed() {
     this.cachedBorder = NaN;
+    this.cachedCellPx = NaN;
     this.cachedCanvasW = 0;
     this.cachedCanvasH = 0;
   }

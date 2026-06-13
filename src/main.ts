@@ -1,5 +1,6 @@
 import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
+import type { FolderApi } from "tweakpane";
 //import { ButtonGridApi } from "@tweakpane/plugin-essentials/dist/types/button-grid/api/button-grid";
 
 import {
@@ -31,16 +32,11 @@ function render(ctx: CanvasRenderingContext2D, _t: DOMHighResTimeStamp) {
 
   let x = 0,
     y = 0;
-  if (clusteri === 0) {
-    x = rand(0.02, 0.98);
-    y = rand(0.02, 0.98);
-    lastx = x;
-    lasty = y;
-  } else {
-    x = lastx + rand(-params.clusters.spread, params.clusters.spread);
-    y = lasty + rand(-params.clusters.spread, params.clusters.spread);
-  }
-  clusteri = (clusteri + 1) % params.clusters.size;
+  x = rand(0.02, 0.98);
+  y = rand(0.02, 0.98);
+  lastx = x;
+  lasty = y;
+  clusteri = clusteri + 1;
 
   drawCluster(ctx, x, y);
 
@@ -66,12 +62,15 @@ pane.registerPlugin(EssentialsPlugin);
 // ---- Renderer modes: single source of truth -------------------------------
 // Each entry describes a renderer button: its label, the legacy params.mode
 // value (used internally by renderers that branch on it), and how to obtain
-// the Renderer instance to activate.
+// the Renderer instance to activate. `settings`, if provided, populates a
+// mode-specific folder in the UI that is only visible while that mode is
+// active.
 type ModeDef = {
   id: string;
   title: string;
   modeValue: number;
   activate: () => Renderer;
+  settings?: (folder: FolderApi) => void;
 };
 const MODES: ModeDef[] = [
   {
@@ -85,6 +84,15 @@ const MODES: ModeDef[] = [
     title: "Voronoi Radial",
     modeValue: 0,
     activate: () => voronoiRenderer,
+    settings: (folder) => {
+      tip(
+        folder.addBinding(params.radialVoronoi, "center", {
+          x: { min: -1, max: 1 },
+          y: { min: -1, max: 1 },
+        }),
+        "Center point used to compute spiral angles.",
+      );
+    },
   },
   {
     id: "retained",
@@ -97,9 +105,26 @@ const MODES: ModeDef[] = [
     title: "Grid",
     modeValue: 2,
     activate: () => gridRenderer,
+    settings: (folder) => {
+      tip(
+        folder.addBinding(params.grid, "cellPx", {
+          min: 10,
+          max: 200,
+          step: 1,
+          label: "cell size (px)",
+        }),
+        "Approximate size of each grid cell in pixels. The grid snaps to the drawable area.",
+      );
+    },
   },
 ];
 const DEFAULT_MODE_ID = "grid";
+
+// helper: set a native HTML tooltip on a Tweakpane binding row
+function tip<T extends { element: HTMLElement }>(binding: T, text: string): T {
+  binding.element.title = text;
+  return binding;
+}
 
 // Track which renderer button is currently active so we can highlight it.
 let activeRendererBtnEl: HTMLElement | null = null;
@@ -111,10 +136,20 @@ function setActiveRendererBtn(el: HTMLElement) {
   activeRendererBtnEl.classList.add("tp-btn-active");
 }
 
+// Per-mode settings folders, populated below. Only the active mode's folder
+// is visible at a time.
+const modeSettingsFolders = new Map<string, FolderApi>();
+function setActiveSettingsFolder(modeId: string) {
+  for (const [id, folder] of modeSettingsFolders) {
+    folder.element.style.display = id === modeId ? "" : "none";
+  }
+}
+
 function selectMode(mode: ModeDef, btnEl: HTMLElement) {
   paper.setRenderer(mode.activate());
   params.mode = mode.modeValue;
   setActiveRendererBtn(btnEl);
+  setActiveSettingsFolder(mode.id);
 }
 
 const modeButtons = new Map<string, HTMLElement>();
@@ -174,11 +209,18 @@ const fMarks = pane.addFolder({
   title: "Marks",
 });
 
-// helper: set a native HTML tooltip on a Tweakpane binding row
-function tip<T extends { element: HTMLElement }>(binding: T, text: string): T {
-  binding.element.title = text;
-  return binding;
+// Create one settings folder per mode that defines a `settings` callback.
+// Folders are positioned together here so they render consistently in the
+// UI. Only the active mode's folder is visible (managed by selectMode).
+for (const mode of MODES) {
+  if (!mode.settings) continue;
+  const folder = pane.addFolder({ title: `${mode.title} Settings` });
+  mode.settings(folder);
+  modeSettingsFolders.set(mode.id, folder);
 }
+// Re-apply visibility now that folders exist (default mode was selected
+// before its folder was created).
+setActiveSettingsFolder(DEFAULT_MODE_ID);
 
 tip(
   fPaper.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 }),
@@ -284,22 +326,6 @@ tip(
   }),
   "Number of parallel strokes drawn at each cluster position.",
 );
-tip(
-  fMarks.addBinding(params.radialVoronoi, "center", {
-    x: { min: -1, max: 1 },
-    y: { min: -1, max: 1 },
-  }),
-  "Center point used by the Voronoi Radial mode to compute stroke angles.",
-);
-const fClusters = pane.addFolder({
-  title: "Clusters",
-});
-fClusters.addBinding(params.clusters, "size", { min: 1, max: 100, step: 1 });
-fClusters.addBinding(params.clusters, "spread", {
-  min: 0,
-  max: 0.2,
-  step: 0.01,
-});
 
 pane.addButton({ title: "Save Settings" }).on("click", () => {
   const anchor = document.createElement("a");

@@ -15,12 +15,11 @@ const params = {
   multiplicity: 3,
   linelength: 0.03,
   linelengthVariation: 0.0,
-  clusters: {
-    size: 1,
-    spread: 0.04,
-  },
   radialVoronoi: {
     center: { x: 0.0, y: 0.0 },
+  },
+  grid: {
+    cellPx: 50,
   },
 };
 
@@ -39,10 +38,11 @@ function loadParamsFromObj(obj: any) {
   params.multiplicity = obj.multiplicity as number;
   params.linelength = obj.linelength as number;
   params.linelengthVariation = obj.linelengthVariation as number;
-  params.clusters.size = obj.clusters.size as number;
-  params.clusters.spread = obj.clusters.spread as number;
   params.radialVoronoi.center.x = obj.radialVoronoi.center.x as number;
   params.radialVoronoi.center.y = obj.radialVoronoi.center.y as number;
+  if (obj.grid && typeof obj.grid.cellPx === "number") {
+    params.grid.cellPx = obj.grid.cellPx as number;
+  }
 }
 
 export { params, loadParamsFromObj };
