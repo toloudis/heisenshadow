@@ -234,7 +234,10 @@ export class GridRenderer implements Renderer {
         const thickness =
           params.thickness +
           cell.thicknessJitter01 * params.thicknessVariation * params.thickness;
-        const linewidth = (cy * cy * thickness) / 10.0;
+        // Top-to-bottom thickness gradient. v=0 -> uniform, v=1 -> cy^2 ramp.
+        const v = params.grid.verticalThickness;
+        const vGradient = 1 + v * (cy * cy - 1);
+        const linewidth = (vGradient * thickness) / 10.0;
 
         ctx.translate(cx, cy);
         ctx.rotate(ang);

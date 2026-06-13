@@ -20,6 +20,7 @@ const params = {
   },
   grid: {
     cellPx: 30,
+    verticalThickness: 1.0,
   },
 };
 
@@ -42,6 +43,9 @@ function loadParamsFromObj(obj: any) {
   params.radialVoronoi.center.y = obj.radialVoronoi.center.y as number;
   if (obj.grid && typeof obj.grid.cellPx === "number") {
     params.grid.cellPx = obj.grid.cellPx as number;
+  }
+  if (obj.grid && typeof obj.grid.verticalThickness === "number") {
+    params.grid.verticalThickness = obj.grid.verticalThickness as number;
   }
 }
 

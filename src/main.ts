@@ -115,6 +115,15 @@ const MODES: ModeDef[] = [
         }),
         "Approximate size of each grid cell in pixels. The grid snaps to the drawable area.",
       );
+      tip(
+        folder.addBinding(params.grid, "verticalThickness", {
+          min: 0,
+          max: 1,
+          step: 0.01,
+          label: "vert. thickness",
+        }),
+        "How much line thickness ramps from top (thin) to bottom (thick). 0 = uniform, 1 = full quadratic ramp.",
+      );
     },
   },
 ];
