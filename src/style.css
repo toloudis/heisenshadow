@@ -13,3 +13,9 @@ body {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* Highlight the currently selected renderer button in the Tweakpane UI */
+.tp-btn-active button.tp-btnv_b {
+  background-color: #e0a800 !important;
+  color: #000 !important;
+}
