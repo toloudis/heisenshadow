@@ -166,6 +166,10 @@ fAnimation.addBinding(params, "clearInBetween").on("change", () => {
 // line length variation
 // stroke taper (-1..1)
 
+const fPaper = pane.addFolder({
+  title: "Paper",
+});
+
 const fMarks = pane.addFolder({
   title: "Marks",
 });
@@ -175,6 +179,11 @@ function tip<T extends { element: HTMLElement }>(binding: T, text: string): T {
   binding.element.title = text;
   return binding;
 }
+
+tip(
+  fPaper.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 }),
+  "Margin around the drawable area. Cells/clusters near the edge are skipped.",
+);
 
 tip(
   fMarks.addBinding(params, "verticality", {
@@ -274,10 +283,6 @@ tip(
     },
   }),
   "Number of parallel strokes drawn at each cluster position.",
-);
-tip(
-  fMarks.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 }),
-  "Margin around the drawable area. Cells/clusters near the edge are skipped.",
 );
 tip(
   fMarks.addBinding(params.radialVoronoi, "center", {
