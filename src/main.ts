@@ -326,3 +326,11 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
   });
   fileinput.click();
 });
+
+// When any pane binding changes (slider, checkbox, etc.) while the animation
+// is paused, redraw once so the change is visible immediately.
+pane.on("change", () => {
+  if (!params.isDrawing) {
+    paper.draw(0.0);
+  }
+});
