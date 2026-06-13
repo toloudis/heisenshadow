@@ -104,8 +104,8 @@ fAnimation
   .on("click", () => {
     paper.draw(1.0);
   });
-fAnimation.addInput(params, "speed", { min: 0.0, max: 10.0, step: 0.1 });
-fAnimation.addInput(params, "clearInBetween").on("change", () => {
+fAnimation.addBinding(params, "speed", { min: 0.0, max: 10.0, step: 0.1 });
+fAnimation.addBinding(params, "clearInBetween").on("change", () => {
   paper.setAutoClear(params.clearInBetween);
 });
 
@@ -116,28 +116,28 @@ const fMarks = pane.addFolder({
   title: "Marks",
 });
 
-fMarks.addInput(params, "verticality", {
+fMarks.addBinding(params, "verticality", {
   min: 0,
   max: 1,
   step: 0.01,
 });
-fMarks.addInput(params, "angleVariation", {
+fMarks.addBinding(params, "angleVariation", {
   min: 0,
   max: 100,
   step: 0.1,
 });
-fMarks.addInput(params, "thickness", {
+fMarks.addBinding(params, "thickness", {
   min: 0,
   max: 0.1,
   step: 0.001,
 });
-fMarks.addInput(params, "thicknessVariation", {
+fMarks.addBinding(params, "thicknessVariation", {
   min: 0,
   max: 1,
   step: 0.01,
 });
 fMarks
-  .addInput(params, "linelength", {
+  .addBinding(params, "linelength", {
     min: 0,
     max: 0.1,
     step: 0.001,
@@ -146,7 +146,7 @@ fMarks
     setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   });
 fMarks
-  .addInput(params, "linelengthVariation", {
+  .addBinding(params, "linelengthVariation", {
     min: 0,
     max: 1.0,
     step: 0.01,
@@ -155,7 +155,7 @@ fMarks
     setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   });
 fMarks
-  .addInput(params, "uniformity", {
+  .addBinding(params, "uniformity", {
     min: 0,
     max: 1,
     step: 0.01,
@@ -163,7 +163,7 @@ fMarks
   .on("change", () => {
     setCurveUniformity(params.uniformity);
   });
-// pane.addInput(params, "strokeType", {
+// pane.addBinding(params, "strokeType", {
 //   options: {
 //     triLine: 0,
 //     bitmap0: 1,
@@ -174,13 +174,13 @@ fMarks
 //     bitmap5: 6,
 //   },
 // });
-fMarks.addInput(params, "dilation", {
+fMarks.addBinding(params, "dilation", {
   min: 0,
   max: 1,
   step: 0.01,
 });
 
-fMarks.addInput(params, "multiplicity", {
+fMarks.addBinding(params, "multiplicity", {
   options: {
     "1": 1,
     "2": 2,
@@ -188,23 +188,27 @@ fMarks.addInput(params, "multiplicity", {
     "4": 4,
   },
 });
-fMarks.addInput(params, "border", { min: 0, max: 0.2, step: 0.01 });
-fMarks.addInput(params.radialVoronoi, "center", {
+fMarks.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 });
+fMarks.addBinding(params.radialVoronoi, "center", {
   x: { min: -1, max: 1 },
   y: { min: -1, max: 1 },
 });
 const fClusters = pane.addFolder({
   title: "Clusters",
 });
-fClusters.addInput(params.clusters, "size", { min: 1, max: 100, step: 1 });
-fClusters.addInput(params.clusters, "spread", { min: 0, max: 0.2, step: 0.01 });
+fClusters.addBinding(params.clusters, "size", { min: 1, max: 100, step: 1 });
+fClusters.addBinding(params.clusters, "spread", {
+  min: 0,
+  max: 0.2,
+  step: 0.01,
+});
 
 pane.addButton({ title: "Save Settings" }).on("click", () => {
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(
     new Blob([JSON.stringify(params, null, 2)], {
       type: "text/plain",
-    })
+    }),
   );
   anchor.download = "settings.json";
   anchor.click();
