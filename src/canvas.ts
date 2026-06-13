@@ -168,18 +168,107 @@ varying vec2 v_coordinate;
 uniform vec2 imageSize;
 uniform sampler2D u_texture;
 
+
+// For multiple octaves
+#define NOISE fbm
+#define NUM_NOISE_OCTAVES 5
+
+// Precision-adjusted variations of https://www.shadertoy.com/view/4djSRW
+float hash(float p) { p = fract(p * 0.011); p *= p + 7.5; p *= p + p; return fract(p); }
+float hash(vec2 p) {vec3 p3 = fract(vec3(p.xyx) * 0.13); p3 += dot(p3, p3.yzx + 3.333); return fract((p3.x + p3.y) * p3.z); }
+
+float noise(float x) {
+    float i = floor(x);
+    float f = fract(x);
+    float u = f * f * (3.0 - 2.0 * f);
+    return mix(hash(i), hash(i + 1.0), u);
+}
+
+float noise(vec2 x) {
+    vec2 i = floor(x);
+    vec2 f = fract(x);
+
+	// Four corners in 2D of a tile
+	float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+
+    // Simple 2D lerp using smoothstep envelope between the values.
+	// return vec3(mix(mix(a, b, smoothstep(0.0, 1.0, f.x)),
+	//			mix(c, d, smoothstep(0.0, 1.0, f.x)),
+	//			smoothstep(0.0, 1.0, f.y)));
+
+	// Same code, with the clamps in smoothstep and common subexpressions
+	// optimized away.
+    vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+float fbm(float x) {
+	float v = 0.0;
+	float a = 0.5;
+	float shift = float(100);
+	for (int i = 0; i < NUM_NOISE_OCTAVES; ++i) {
+		v += a * noise(x);
+		x = x * 2.0 + shift;
+		a *= 0.5;
+	}
+	return v;
+}
+
+
+float fbm(vec2 x) {
+	float v = 0.0;
+	float a = 0.5;
+	vec2 shift = vec2(100);
+	// Rotate to reduce axial bias
+    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
+	for (int i = 0; i < NUM_NOISE_OCTAVES; ++i) {
+		v += a * noise(x);
+		x = rot * x * 2.0 + shift;
+		a *= 0.5;
+	}
+	return v;
+}
+void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
+{
+	float w = 1.0 / imageSize.x;
+	float h = 1.0 / imageSize.y;
+
+	n[0] = texture2D(tex, coord + vec2( -w, -h));
+	n[1] = texture2D(tex, coord + vec2(0.0, -h));
+	n[2] = texture2D(tex, coord + vec2(  w, -h));
+	n[3] = texture2D(tex, coord + vec2( -w, 0.0));
+	n[4] = texture2D(tex, coord);
+	n[5] = texture2D(tex, coord + vec2(  w, 0.0));
+	n[6] = texture2D(tex, coord + vec2( -w, h));
+	n[7] = texture2D(tex, coord + vec2(0.0, h));
+	n[8] = texture2D(tex, coord + vec2(  w, h));
+}
+vec4 sobel(vec2 uv) {
+	vec4 n[9];
+	make_kernel( n, u_texture, uv );
+
+	vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
+  vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
+	vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+  return sobel;
+}
+
 void main() {
   vec2 position = vec2(v_coordinate.x, 1.0 - v_coordinate.y);
   vec2 onePixel = vec2(1, 1) / imageSize;
   vec4 color = vec4(0);
   mat3 kernel = mat3(
-    0.1, 0.1, 0.1,0.1, 0.1, 0.1,0.1, 0.1, 0.1
+    0.11111, 0.11111, 0.11111,
+    0.11111, 0.11111, 0.11111,
+    0.11111, 0.11111, 0.11111
   );
   // implementing the convolution operation
   for(int i = 0; i < 3; i++) {
     for(int j = 0; j < 3; j++) {
       // retrieving the sample position pixel
-      vec2 samplePosition = position + vec2(i - 1 , j - 1) * onePixel;
+      vec2 samplePosition = position + vec2((0.5)*float(i - 1) , (0.5)*float(j - 1)) * onePixel;
       // retrieving the sample color
       vec4 sampleColor = texture2D(u_texture, samplePosition);
       sampleColor *= kernel[i][j];
@@ -187,7 +276,16 @@ void main() {
     }
   }
   color.a = 1.0;
-  gl_FragColor = color;
+
+
+  //vec2 coord = v_coordinate.xy * 1000.0;// * 0.1;
+  //float v = NOISE(coord);
+  float v = 1.0;
+
+  vec4 sobel_val = sobel(v_coordinate.xy);
+//  gl_FragColor = color*v*(1.0-sobel_val);
+  gl_FragColor = 1.0-color*v*(sobel_val);
+  gl_FragColor.a = 1.0;
 }
 `;
 
