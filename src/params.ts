@@ -2,9 +2,9 @@ const params = {
   mode: 0,
   speed: 5,
   dilation: 0.0,
-  border: 0.08,
+  border: 0.04,
   clearInBetween: true,
-  thickness: 0.03,
+  thickness: 0.048,
   thicknessVariation: 0.0,
   uniformity: 0.7,
   verticality: 1.0,
@@ -19,7 +19,7 @@ const params = {
     center: { x: 0.0, y: 0.0 },
   },
   grid: {
-    cellPx: 50,
+    cellPx: 30,
   },
 };
 

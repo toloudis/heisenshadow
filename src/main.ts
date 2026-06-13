@@ -150,6 +150,9 @@ function selectMode(mode: ModeDef, btnEl: HTMLElement) {
   params.mode = mode.modeValue;
   setActiveRendererBtn(btnEl);
   setActiveSettingsFolder(mode.id);
+  // Refresh once so the new renderer's output is visible immediately,
+  // even while paused. (Auto-clears if clearInBetween is on.)
+  paper.draw(0);
 }
 
 const modeButtons = new Map<string, HTMLElement>();
