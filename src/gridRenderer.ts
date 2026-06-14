@@ -1,19 +1,10 @@
 import type { Renderer } from "./renderer";
 import { Canvas } from "./canvas";
-import { Stroke, setCurveSize } from "./strokes";
+import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
 import { params } from "./params";
 import { rand } from "./rand";
 
-const VERTICALITY_LEVELS = [-0.5, 0, 0.5, 1];
-// Relative weight of each transition from the left neighbor's verticality,
-// keyed by absolute difference. Higher = more likely. Small steps are
-// favored, large jumps are rare, and exact repeats are allowed but unlikely.
-const VERTICALITY_TRANSITION_WEIGHTS: Record<string, number> = {
-  "0": 1, // repeat
-  "0.5": 6, // one step
-  "1": 2, // two steps
-  "1.5": 1, // three steps (full span)
-};
+const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 
 // Strokes are built at this reference half-length (sizex == sizey == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
@@ -22,8 +13,8 @@ const VERTICALITY_TRANSITION_WEIGHTS: Record<string, number> = {
 const REF_SIZE = 1.0;
 
 type GridCell = {
-  // randomly chosen per cell, stable across slider changes
-  verticality: number; // one of VERTICALITY_LEVELS
+  // deterministic per-cell value from the diagonal cycle, stable across slider changes
+  verticality: number; // one of DIAGONAL_VERTICALITY_PATTERN
   angleJitter01: number; // uniform in [-1, 1], scaled by params.angleVariation at draw time
   thicknessJitter01: number; // uniform in [-1, 1], scaled by params.thicknessVariation at draw time
   strokes: Stroke[]; // pre-built bezier curves at unit reference size
@@ -48,6 +39,7 @@ export class GridRenderer implements Renderer {
   // it does not require rebuilding strokes.
   private cachedBorder: number = NaN;
   private cachedMultiplicity: number = NaN;
+  private cachedUniformity: number = NaN;
   private cachedCellPx: number = NaN;
   private cachedCanvasW: number = 0;
   private cachedCanvasH: number = 0;
@@ -107,7 +99,9 @@ export class GridRenderer implements Renderer {
       this.cachedCellPx !== cellPx ||
       this.cachedCanvasW !== this.canvasWidth ||
       this.cachedCanvasH !== this.canvasHeight;
-    const strokesChanged = this.cachedMultiplicity !== params.multiplicity;
+    const strokesChanged =
+      this.cachedMultiplicity !== params.multiplicity ||
+      this.cachedUniformity !== params.uniformity;
 
     if (
       !layoutChanged &&
@@ -120,6 +114,7 @@ export class GridRenderer implements Renderer {
 
     // Build strokes at unit reference size with no length variation. We scale
     // them at draw time to fit each cell.
+    setCurveUniformity(params.uniformity);
     setCurveSize(REF_SIZE, REF_SIZE, 0.0, 0.0);
 
     const mult = Math.max(1, params.multiplicity);
@@ -144,32 +139,14 @@ export class GridRenderer implements Renderer {
           angleJitter01 = prev.angleJitter01;
           thicknessJitter01 = prev.thicknessJitter01;
         } else {
-          // Pick verticality with weighted preference for small changes
-          // from the left neighbor.
-          if (i === 0) {
-            verticality =
-              VERTICALITY_LEVELS[
-                Math.floor(Math.random() * VERTICALITY_LEVELS.length)
-              ];
-          } else {
-            const left = row[i - 1].verticality;
-            const weights = VERTICALITY_LEVELS.map(
-              (l) =>
-                VERTICALITY_TRANSITION_WEIGHTS[Math.abs(l - left).toString()] ??
-                0,
-            );
-            const total = weights.reduce((a, b) => a + b, 0);
-            let r = Math.random() * total;
-            let idx = 0;
-            for (let k = 0; k < weights.length; k++) {
-              r -= weights[k];
-              if (r <= 0) {
-                idx = k;
-                break;
-              }
-            }
-            verticality = VERTICALITY_LEVELS[idx];
-          }
+          // Diagonals cycle as they move up/right:
+          // -0.5 -> 1 -> 0.5 -> 0 -> repeat.
+          const diagonal = i - j;
+          const idx =
+            ((diagonal % DIAGONAL_VERTICALITY_PATTERN.length) +
+              DIAGONAL_VERTICALITY_PATTERN.length) %
+            DIAGONAL_VERTICALITY_PATTERN.length;
+          verticality = DIAGONAL_VERTICALITY_PATTERN[idx];
           angleJitter01 = rand(-1, 1);
           thicknessJitter01 = rand(-1, 1);
         }
@@ -198,6 +175,7 @@ export class GridRenderer implements Renderer {
     this.cachedCanvasW = this.canvasWidth;
     this.cachedCanvasH = this.canvasHeight;
     this.cachedMultiplicity = params.multiplicity;
+    this.cachedUniformity = params.uniformity;
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
