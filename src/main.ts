@@ -124,6 +124,15 @@ const MODES: ModeDef[] = [
         }),
         "How much line thickness ramps from top (thin) to bottom (thick). 0 = uniform, 1 = full quadratic ramp.",
       );
+      tip(
+        folder.addBinding(params.grid, "orientationVariationProbability", {
+          min: 0,
+          max: 0.5,
+          step: 0.001,
+          label: "orientation var.",
+        }),
+        "Chance each cell deviates from the diagonal orientation pattern. Higher values allow more off-pattern cells.",
+      );
     },
   },
 ];
@@ -270,6 +279,12 @@ tip(
     step: 0.01,
   }),
   "Per-stroke random variation of thickness, as a fraction of the base thickness.",
+);
+tip(
+  fMarks.addBinding(params, "imageThicknessUrl", {
+    label: "thickness img url",
+  }),
+  "Image URL used to modulate thickness by HSV value (darker = thicker). Clear to disable image-driven thickness.",
 );
 tip(
   fMarks

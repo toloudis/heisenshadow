@@ -3,6 +3,7 @@ import { Canvas } from "./canvas";
 import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
 import { params } from "./params";
 import { rand } from "./rand";
+import { getImageThicknessMultiplier } from "./imageThicknessMap";
 
 const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 
@@ -13,7 +14,7 @@ const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 const REF_SIZE = 1.0;
 
 type GridCell = {
-  // deterministic per-cell value from the diagonal cycle, stable across slider changes
+  // mostly deterministic from the diagonal cycle, with rare per-cell overrides
   verticality: number; // one of DIAGONAL_VERTICALITY_PATTERN
   angleJitter01: number; // uniform in [-1, 1], scaled by params.angleVariation at draw time
   thicknessJitter01: number; // uniform in [-1, 1], scaled by params.thicknessVariation at draw time
@@ -40,6 +41,7 @@ export class GridRenderer implements Renderer {
   private cachedBorder: number = NaN;
   private cachedMultiplicity: number = NaN;
   private cachedUniformity: number = NaN;
+  private cachedOrientationVariationProbability: number = NaN;
   private cachedCellPx: number = NaN;
   private cachedCanvasW: number = 0;
   private cachedCanvasH: number = 0;
@@ -101,7 +103,9 @@ export class GridRenderer implements Renderer {
       this.cachedCanvasH !== this.canvasHeight;
     const strokesChanged =
       this.cachedMultiplicity !== params.multiplicity ||
-      this.cachedUniformity !== params.uniformity;
+      this.cachedUniformity !== params.uniformity ||
+      this.cachedOrientationVariationProbability !==
+        params.grid.orientationVariationProbability;
 
     if (
       !layoutChanged &&
@@ -118,6 +122,37 @@ export class GridRenderer implements Renderer {
     setCurveSize(REF_SIZE, REF_SIZE, 0.0, 0.0);
 
     const mult = Math.max(1, params.multiplicity);
+    const orientationVariationProbability = Math.max(
+      0,
+      Math.min(1, params.grid.orientationVariationProbability),
+    );
+
+    // Keep deviating cells from clustering. As probability decreases, expected
+    // spacing increases, so we raise the minimum allowed cell distance.
+    const minDeviationSpacing =
+      orientationVariationProbability > 0
+        ? Math.max(1, Math.floor(Math.sqrt(1 / orientationVariationProbability) * 0.5))
+        : 0;
+    const hasNearbyDeviation = (
+      i: number,
+      j: number,
+      deviates: boolean[][],
+    ) => {
+      if (minDeviationSpacing <= 0) return false;
+      const j0 = Math.max(0, j - minDeviationSpacing);
+      const j1 = Math.min(rows - 1, j + minDeviationSpacing);
+      const i0 = Math.max(0, i - minDeviationSpacing);
+      const i1 = Math.min(cols - 1, i + minDeviationSpacing);
+      for (let y = j0; y <= j1; y++) {
+        for (let x = i0; x <= i1; x++) {
+          if (!deviates[y][x]) continue;
+          if (Math.max(Math.abs(x - i), Math.abs(y - j)) <= minDeviationSpacing) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
 
     // If only stroke shape / multiplicity changed (not layout), we can
     // reuse verticality and jitter values. Otherwise rebuild from scratch.
@@ -127,6 +162,9 @@ export class GridRenderer implements Renderer {
       (rows === 0 || this.cells[0].length === cols);
 
     const newCells: GridCell[][] = [];
+    const deviationMask: boolean[][] = Array.from({ length: rows }, () =>
+      Array(cols).fill(false),
+    );
     for (let j = 0; j < rows; j++) {
       const row: GridCell[] = [];
       for (let i = 0; i < cols; i++) {
@@ -147,6 +185,20 @@ export class GridRenderer implements Renderer {
               DIAGONAL_VERTICALITY_PATTERN.length) %
             DIAGONAL_VERTICALITY_PATTERN.length;
           verticality = DIAGONAL_VERTICALITY_PATTERN[idx];
+
+          // Deviating cells are probability-driven, but kept spatially apart
+          // so they don't cluster too tightly.
+          if (
+            Math.random() < orientationVariationProbability &&
+            !hasNearbyDeviation(i, j, deviationMask)
+          ) {
+            const alternatives = DIAGONAL_VERTICALITY_PATTERN.filter(
+              (v) => v !== verticality,
+            );
+            verticality =
+              alternatives[Math.floor(Math.random() * alternatives.length)];
+            deviationMask[j][i] = true;
+          }
           angleJitter01 = rand(-1, 1);
           thicknessJitter01 = rand(-1, 1);
         }
@@ -176,6 +228,8 @@ export class GridRenderer implements Renderer {
     this.cachedCanvasH = this.canvasHeight;
     this.cachedMultiplicity = params.multiplicity;
     this.cachedUniformity = params.uniformity;
+    this.cachedOrientationVariationProbability =
+      params.grid.orientationVariationProbability;
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
@@ -215,7 +269,8 @@ export class GridRenderer implements Renderer {
         // Top-to-bottom thickness gradient. v=0 -> uniform, v=1 -> cy^2 ramp.
         const v = params.grid.verticalThickness;
         const vGradient = 1 + v * (cy * cy - 1);
-        const linewidth = (vGradient * thickness) / 10.0;
+        const imageThickness = getImageThicknessMultiplier(cx, cy);
+        const linewidth = (vGradient * thickness * imageThickness) / 10.0;
 
         ctx.translate(cx, cy);
         ctx.rotate(ang);

@@ -5,6 +5,7 @@ import type { VNCell } from "./voronoi";
 import { Cluster, Stroke } from "./strokes";
 import { params } from "./params";
 import { rand } from "./rand";
+import { getImageThicknessMultiplier } from "./imageThicknessMap";
 
 export class VoronoiRadialRendererRetained implements Renderer {
   private framet: number;
@@ -58,7 +59,11 @@ export class VoronoiRadialRendererRetained implements Renderer {
           -params.thicknessVariation * params.thickness,
           params.thicknessVariation * params.thickness
         );
-      const linewidth = (r * thickness) / 10.0; //rand(0.01, 0.1);
+      const imageThickness = getImageThicknessMultiplier(
+        cell.centroid.x,
+        cell.centroid.y
+      );
+      const linewidth = (r * thickness * imageThickness) / 10.0; //rand(0.01, 0.1);
       //(Math.cos(r * 4) * Math.cos(r * 4) * params.thickness) / 10.0; //rand(0.01, 0.1);
 
       const cluster = new Cluster();
@@ -161,7 +166,11 @@ export class VoronoiRadialRendererRetained implements Renderer {
         -params.thicknessVariation * params.thickness,
         params.thicknessVariation * params.thickness
       );
-    const linewidth = thickness / 10.0; //rand(0.01, 0.1);
+    const imageThickness = getImageThicknessMultiplier(
+      cell.centroid.x,
+      cell.centroid.y
+    );
+    const linewidth = (thickness * imageThickness) / 10.0; //rand(0.01, 0.1);
 
     cluster.ang = ang;
     cluster.linewidth = linewidth;
