@@ -281,6 +281,12 @@ tip(
   "Per-stroke random variation of thickness, as a fraction of the base thickness.",
 );
 tip(
+  fMarks.addBinding(params, "imageThicknessEnabled", {
+    label: "thickness img",
+  }),
+  "Toggle image-driven thickness modulation. When off, strokes ignore the thickness image.",
+);
+tip(
   fMarks.addBinding(params, "imageThicknessUrl", {
     label: "thickness img url",
   }),

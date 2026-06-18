@@ -131,7 +131,10 @@ export class GridRenderer implements Renderer {
     // spacing increases, so we raise the minimum allowed cell distance.
     const minDeviationSpacing =
       orientationVariationProbability > 0
-        ? Math.max(1, Math.floor(Math.sqrt(1 / orientationVariationProbability) * 0.5))
+        ? Math.max(
+            1,
+            Math.floor(Math.sqrt(1 / orientationVariationProbability) * 0.5),
+          )
         : 0;
     const hasNearbyDeviation = (
       i: number,
@@ -146,7 +149,9 @@ export class GridRenderer implements Renderer {
       for (let y = j0; y <= j1; y++) {
         for (let x = i0; x <= i1; x++) {
           if (!deviates[y][x]) continue;
-          if (Math.max(Math.abs(x - i), Math.abs(y - j)) <= minDeviationSpacing) {
+          if (
+            Math.max(Math.abs(x - i), Math.abs(y - j)) <= minDeviationSpacing
+          ) {
             return true;
           }
         }

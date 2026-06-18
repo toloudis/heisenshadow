@@ -6,6 +6,7 @@ const params = {
   clearInBetween: true,
   thickness: 0.048,
   thicknessVariation: 0.0,
+  imageThicknessEnabled: false,
   imageThicknessUrl:
     "https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg",
   uniformity: 0.7,
@@ -21,8 +22,8 @@ const params = {
     center: { x: 0.0, y: 0.0 },
   },
   grid: {
-    cellPx: 30,
-    verticalThickness: 1.0,
+    cellPx: 20,
+    verticalThickness: 0.0,
     orientationVariationProbability: 1 / 25,
   },
 };
@@ -33,6 +34,9 @@ function loadParamsFromObj(obj: any) {
   params.speed = obj.speed as number;
   params.thickness = obj.thickness as number;
   params.thicknessVariation = obj.thicknessVariation as number;
+  if (typeof obj.imageThicknessEnabled === "boolean") {
+    params.imageThicknessEnabled = obj.imageThicknessEnabled as boolean;
+  }
   if (typeof obj.imageThicknessUrl === "string") {
     params.imageThicknessUrl = obj.imageThicknessUrl as string;
   }
@@ -57,8 +61,8 @@ function loadParamsFromObj(obj: any) {
     obj.grid &&
     typeof obj.grid.orientationVariationProbability === "number"
   ) {
-    params.grid.orientationVariationProbability =
-      obj.grid.orientationVariationProbability as number;
+    params.grid.orientationVariationProbability = obj.grid
+      .orientationVariationProbability as number;
   }
 }
 

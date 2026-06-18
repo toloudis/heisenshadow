@@ -64,6 +64,9 @@ function beginLoad(url: string) {
 }
 
 export function getImageThicknessMultiplier(x01: number, y01: number): number {
+  if (!params.imageThicknessEnabled) {
+    return 1;
+  }
   const url = (params.imageThicknessUrl || "").trim();
   if (!url) {
     return 1;
