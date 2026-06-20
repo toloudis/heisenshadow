@@ -1,9 +1,9 @@
-import type { Renderer } from "./renderer";
-import { Canvas } from "./canvas";
-import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
+import type { Canvas } from "./canvas";
+import { getImageThicknessMultiplier } from "./imageThicknessMap";
 import { params } from "./params";
 import { rand } from "./rand";
-import { getImageThicknessMultiplier } from "./imageThicknessMap";
+import type { Renderer } from "./renderer";
+import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
 
 const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 

@@ -37,12 +37,12 @@ export class Canvas {
 
     this.getCanvas().addEventListener(
       "pointerdown",
-      this.pointerDown.bind(this)
+      this.pointerDown.bind(this),
     );
 
     this.getCanvas().addEventListener(
       "pointermove",
-      this.pointerMove.bind(this)
+      this.pointerMove.bind(this),
     );
 
     this.getCanvas().addEventListener("pointerup", this.pointerUp.bind(this));
@@ -150,7 +150,7 @@ export class Canvas {
     const addedStroke = this.renderer?.pointerMove(
       _e,
       _e.offsetX / this.canvas.width,
-      _e.offsetY / this.canvas.height
+      _e.offsetY / this.canvas.height,
     );
     // todo work out how many times to redraw
     if (addedStroke) window.requestAnimationFrame((t0) => this.animate(t0));

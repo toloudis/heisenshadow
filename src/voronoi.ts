@@ -1,5 +1,5 @@
-import { Delaunay } from "d3-delaunay";
 import { polygonCentroid } from "d3";
+import { Delaunay } from "d3-delaunay";
 
 function sqr(x: number): number {
   return x * x;
@@ -15,7 +15,7 @@ function dist2(v: [number, number], w: [number, number]): number {
 function distToSegmentSquared(
   p: [number, number],
   v: [number, number],
-  w: [number, number]
+  w: [number, number],
 ): number {
   var l2 = dist2(v, w);
   if (l2 === 0) return dist2(p, v);
@@ -30,7 +30,7 @@ function distToSegmentSquared(
 function distToSegment(
   p: [number, number],
   v: [number, number],
-  w: [number, number]
+  w: [number, number],
 ): number {
   return Math.sqrt(distToSegmentSquared(p, v, w));
 }
@@ -110,7 +110,7 @@ export function createVoronoiDiagram(opts: VoronoiOptions): VoronoiDiagram {
     });
   }
 
-  let cells: VNCell[] = [];
+  const cells: VNCell[] = [];
 
   for (let i = 0; i < delaunay.points.length; i += 2) {
     const cell = voronoi.cellPolygon(i >> 1);
@@ -162,7 +162,7 @@ function getClosestEdgeToCentroid(points: [number, number][]) {
       const dist = distToSegment(
         centroid,
         pointsSorted[i],
-        pointsSorted[i + 1]
+        pointsSorted[i + 1],
       );
 
       if (dist < closest) {
@@ -176,7 +176,7 @@ function getClosestEdgeToCentroid(points: [number, number][]) {
 
 function sortPointsByAngle(
   centroid: [number, number],
-  points: [number, number][]
+  points: [number, number][],
 ) {
   const centerPoint = centroid;
   const sorted = points.slice(0);
@@ -202,7 +202,7 @@ function random(min: number, max: number): number {
 export function createVoronoiFromRandomPoints(
   width: number,
   height: number,
-  npts: number
+  npts: number,
 ): VoronoiDiagram {
   const points: { x: number; y: number }[] = [...Array(npts)].map(() => {
     return {

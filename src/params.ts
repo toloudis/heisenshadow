@@ -66,4 +66,4 @@ function loadParamsFromObj(obj: any) {
   }
 }
 
-export { params, loadParamsFromObj };
+export { loadParamsFromObj, params };

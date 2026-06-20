@@ -1,11 +1,11 @@
-import type { Renderer } from "./renderer";
-import { Canvas } from "./canvas";
-import { createVoronoiFromRandomPoints, VoronoiDiagram } from "./voronoi";
-import type { VNCell } from "./voronoi";
-import { drawClusterParams } from "./strokes";
+import type { Canvas } from "./canvas";
+import { getImageThicknessMultiplier } from "./imageThicknessMap";
 import { params } from "./params";
 import { rand } from "./rand";
-import { getImageThicknessMultiplier } from "./imageThicknessMap";
+import type { Renderer } from "./renderer";
+import { drawClusterParams } from "./strokes";
+import type { VNCell } from "./voronoi";
+import { createVoronoiFromRandomPoints, type VoronoiDiagram } from "./voronoi";
 
 export class VoronoiRadialRenderer implements Renderer {
   private framet: number;
@@ -54,7 +54,7 @@ export class VoronoiRadialRenderer implements Renderer {
   private drawAllVoronoiCells_Radial(
     ctx: CanvasRenderingContext2D,
     spiralness: number,
-    voronoi: VoronoiDiagram
+    voronoi: VoronoiDiagram,
   ) {
     for (const cell of voronoi.cells) {
       // if cell is close to edge, then skip it
@@ -89,7 +89,7 @@ export class VoronoiRadialRenderer implements Renderer {
         const theta = Math.atan2(relativeCentroidY, relativeCentroidX);
         const r = Math.sqrt(
           relativeCentroidX * relativeCentroidX +
-            relativeCentroidY * relativeCentroidY
+            relativeCentroidY * relativeCentroidY,
         );
         //const spiralness = 1.0 / 0.2;
         const ang =
@@ -100,11 +100,11 @@ export class VoronoiRadialRenderer implements Renderer {
           params.thickness +
           rand(
             -params.thicknessVariation * params.thickness,
-            params.thicknessVariation * params.thickness
+            params.thicknessVariation * params.thickness,
           );
         const imageThickness = getImageThicknessMultiplier(
           cell.centroid.x,
-          cell.centroid.y
+          cell.centroid.y,
         );
         const linewidth = (r * thickness * imageThickness) / 10.0; //rand(0.01, 0.1);
         //(Math.cos(r * 4) * Math.cos(r * 4) * params.thickness) / 10.0; //rand(0.01, 0.1);
@@ -115,7 +115,7 @@ export class VoronoiRadialRenderer implements Renderer {
           cell.centroid.y,
           ang,
           linewidth,
-          params.multiplicity
+          params.multiplicity,
         );
       } else {
         const ang =
@@ -124,10 +124,13 @@ export class VoronoiRadialRenderer implements Renderer {
 
         const imageThickness = getImageThicknessMultiplier(
           cell.centroid.x,
-          cell.centroid.y
+          cell.centroid.y,
         );
         const linewidth =
-          (cell.centroid.y * cell.centroid.y * params.thickness * imageThickness) /
+          (cell.centroid.y *
+            cell.centroid.y *
+            params.thickness *
+            imageThickness) /
           10.0; //rand(0.01, 0.1);
         drawClusterParams(
           ctx,
@@ -135,7 +138,7 @@ export class VoronoiRadialRenderer implements Renderer {
           cell.centroid.y,
           ang,
           linewidth,
-          params.multiplicity
+          params.multiplicity,
         );
       }
       ctx.restore();

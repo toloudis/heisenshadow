@@ -1,12 +1,11 @@
-import { rand } from "./rand";
-
 import assetUrl0 from "./assets/strokes-0.png";
 import assetUrl1 from "./assets/strokes-1.png";
 import assetUrl2 from "./assets/strokes-2.png";
 import assetUrl3 from "./assets/strokes-3.png";
 import assetUrl4 from "./assets/strokes-4.png";
 import assetUrl5 from "./assets/strokes-5.png";
-import { VNCell } from "./voronoi";
+import { rand } from "./rand";
+import type { VNCell } from "./voronoi";
 
 let curveLengthVariation = 0.0;
 let curveVariability = 0.25;
@@ -19,7 +18,7 @@ export function setCurveSize(
   sizex: number,
   sizey: number,
   _variationx: number,
-  variationy: number
+  variationy: number,
 ) {
   curvesizex = sizex;
   curvesizey = sizey;
@@ -42,7 +41,7 @@ export function curvy2(ctx: CanvasRenderingContext2D) {
     0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
     0.333 * sizey + sizey * rand(-curveVariability, curveVariability),
     0.0 * curvesizex,
-    1.0 * sizey
+    1.0 * sizey,
   );
   ctx.stroke();
   ctx.moveTo(0, 0);
@@ -53,7 +52,7 @@ export function triad(
   n: number,
   strokeFn: (ctx: CanvasRenderingContext2D) => void,
   dx: number,
-  dy: number
+  dy: number,
 ) {
   if (n < 1) {
     return;
@@ -85,7 +84,7 @@ export function loadStrokeAssets(ctx: CanvasRenderingContext2D) {
   ];
   for (const url in urls) {
     const img = new Image();
-    img.onload = function () {
+    img.onload = () => {
       const pattern = ctx.createPattern(img, "no-repeat");
       if (pattern) {
         strokePatterns.push(pattern);
@@ -103,7 +102,7 @@ export function strokeImage(ctx: CanvasRenderingContext2D, index: number) {
     0.0,
     0.0,
     curvesizex * 2.0 * aspect,
-    curvesizey * 2.0
+    curvesizey * 2.0,
   );
 }
 
@@ -113,7 +112,7 @@ export function drawClusterParams(
   y: number,
   ang: number,
   linewidth: number,
-  multiplicity: number
+  multiplicity: number,
 ) {
   const oldlw = ctx.lineWidth;
 

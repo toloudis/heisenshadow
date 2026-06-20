@@ -1,6 +1,6 @@
-import { Pane } from "tweakpane";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 import type { FolderApi } from "tweakpane";
+import { Pane } from "tweakpane";
 //import { ButtonGridApi } from "@tweakpane/plugin-essentials/dist/types/button-grid/api/button-grid";
 
 import {
@@ -12,11 +12,11 @@ import {
 
 import "./style.css";
 import { Canvas } from "./canvas";
+import { GridRenderer } from "./gridRenderer";
 import { loadParamsFromObj, params } from "./params";
 import type { Renderer } from "./renderer";
 import { VoronoiRadialRenderer } from "./voronoiRadialRenderer";
 import { VoronoiRadialRendererRetained } from "./voronoiRadialRendererRetained";
-import { GridRenderer } from "./gridRenderer";
 
 /** BEGIN IFDEF
 let lastx = 0;
