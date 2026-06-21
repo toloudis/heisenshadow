@@ -49,8 +49,9 @@ function render(ctx: CanvasRenderingContext2D, _t: DOMHighResTimeStamp) {
 }
 END IFDEF */
 
-const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
-const paper = new Canvas(canvas, params.canvasAspect);
+const canvasElement = document.querySelector<HTMLCanvasElement>("#canvas");
+if (!canvasElement) throw new Error("Canvas element not found");
+const paper = new Canvas(canvasElement, params.canvasAspect);
 const voronoiRenderer = new VoronoiRadialRenderer(paper);
 const gridRenderer = new GridRenderer(paper);
 
@@ -181,8 +182,13 @@ for (const mode of MODES) {
 }
 
 // Apply the default mode (drives initial renderer, params.mode, and highlight).
-const defaultMode = MODES.find((m) => m.id === DEFAULT_MODE_ID)!;
-selectMode(defaultMode, modeButtons.get(DEFAULT_MODE_ID)!);
+const defaultMode = MODES.find((m) => m.id === DEFAULT_MODE_ID);
+if (defaultMode) {
+  const modeButton = modeButtons.get(DEFAULT_MODE_ID);
+  if (modeButton) {
+    selectMode(defaultMode, modeButton);
+  }
+}
 pane
   .addButton({
     title: "Clear",

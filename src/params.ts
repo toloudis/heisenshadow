@@ -1,4 +1,33 @@
-const params = {
+type Params = {
+  mode: number;
+  speed: number;
+  dilation: number;
+  border: number;
+  clearInBetween: boolean;
+  thickness: number;
+  thicknessVariation: number;
+  imageThicknessEnabled: boolean;
+  imageThicknessUrl: string;
+  uniformity: number;
+  verticality: number;
+  angleVariation: number;
+  isDrawing: boolean;
+  canvasAspect: number;
+  strokeType: number;
+  multiplicity: number;
+  linelength: number;
+  linelengthVariation: number;
+  radialVoronoi: {
+    center: { x: number; y: number };
+  };
+  grid: {
+    cellPx: number;
+    verticalThickness: number;
+    orientationVariationProbability: number;
+  };
+};
+
+const params: Params = {
   mode: 0,
   speed: 5,
   dilation: 0.0,
@@ -28,7 +57,7 @@ const params = {
   },
 };
 
-function loadParamsFromObj(obj: any) {
+function loadParamsFromObj(obj: Params) {
   params.angleVariation = obj.angleVariation as number;
   params.clearInBetween = obj.clearInBetween as boolean;
   params.speed = obj.speed as number;

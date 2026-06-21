@@ -14,7 +14,11 @@ export class Canvas {
 
   constructor(canvas: HTMLCanvasElement, paperAspect: number) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get 2D context from canvas");
+    }
+    this.ctx = ctx;
     this.ctx.shadowBlur = 0; // 0.01;
     this.ctx.shadowColor = "rgb(0, 0, 0)";
     this.ctx.lineCap = "round";
