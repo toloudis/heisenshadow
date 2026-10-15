@@ -345,12 +345,48 @@ tip(
   }),
   "Toggle image-driven thickness modulation. When off, strokes ignore the thickness image.",
 );
-tip(
+const imageThicknessUrlBinding = tip(
   fMarks.addBinding(params, "imageThicknessUrl", {
     label: "thickness img url",
   }),
   "Image URL used to modulate thickness by HSV value (darker = thicker). Clear to disable image-driven thickness.",
 );
+addFilePickerButton(imageThicknessUrlBinding.element, "image/*");
+
+// Adds a "..." button next to a text binding's input. Picking a local file puts
+// a blob: URL into the input, which only stays valid for this page session.
+function addFilePickerButton(bindingEl: HTMLElement, accept: string) {
+  const valueEl = bindingEl.querySelector<HTMLElement>(".tp-lblv_v");
+  const input = bindingEl.querySelector<HTMLInputElement>("input");
+  if (!valueEl || !input) return;
+
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = accept;
+  fileInput.style.display = "none";
+
+  const btn = document.createElement("button");
+  btn.className = "tp-file-btn";
+  btn.textContent = "...";
+  btn.title = "Choose a local file";
+  btn.addEventListener("click", () => fileInput.click());
+
+  let blobUrl = "";
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(file);
+    // Go through the input's own change handling so Tweakpane updates the
+    // param and fires its change events as if the url had been typed.
+    input.value = blobUrl;
+    input.dispatchEvent(new Event("change"));
+    fileInput.value = "";
+  });
+
+  valueEl.classList.add("tp-file-row");
+  valueEl.append(btn, fileInput);
+}
 tip(
   fMarks
     .addBinding(params, "linelength", {

@@ -130,7 +130,14 @@ function forEachLeaf(
 function writeParamsToSearchParams(search: URLSearchParams) {
   forEachLeaf(params as unknown as ParamTree, (path, holder, key) => {
     if (URL_EXCLUDED_KEYS.has(path)) return;
-    search.set(path, String(holder[key]));
+    const value = holder[key];
+    // Local-file urls (from the file picker) only work in this page session,
+    // so they aren't shareable.
+    if (typeof value === "string" && /^(blob|data):/i.test(value)) {
+      search.delete(path);
+      return;
+    }
+    search.set(path, String(value));
   });
 }
 

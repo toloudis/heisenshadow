@@ -18,3 +18,32 @@ body {
   background-color: #e0a800; /* !important; */
   color: #000; /* !important; */
 }
+
+/* Text binding with a trailing "..." file picker button */
+.tp-file-row {
+  display: flex;
+  gap: 2px;
+}
+.tp-file-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.tp-file-btn {
+  flex: none;
+  width: var(--cnt-usz, 20px);
+  height: var(--cnt-usz, 20px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--bld-br, 2px);
+  background-color: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.tp-file-btn:hover {
+  background-color: var(--btn-bg-h);
+}
+.tp-file-btn:active {
+  background-color: var(--btn-bg-a);
+}
