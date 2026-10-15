@@ -5,7 +5,12 @@ import { rand } from "./rand";
 import type { Renderer } from "./renderer";
 import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
 
-const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
+// Base pattern, read going up a column: "\", "|", "/", "-", repeating (i.e.
+// the "/", "-", "\", "|" cycle). Each column starts COLUMN_PHASE_SHIFT steps
+// further along the cycle than the one to its left, which lines the strokes
+// up into diagonal bands across the grid.
+const COLUMN_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
+const COLUMN_PHASE_SHIFT = 1;
 
 // Strokes are built at this reference half-length (sizex == sizey == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
@@ -19,18 +24,18 @@ const PATCH_SPACING = 5;
 const CELL_BREAK_SCALE = 0.1;
 
 // A patch is a blob of cells (octagon-ish, from the distance metric used to
-// assign cells to seeds) that can shift or mirror the diagonal angle cycle.
+// assign cells to seeds) that can shift or mirror the column angle cycle.
 // The randoms are cached so that params.grid.patternVariation is live.
 type Patch = {
   x: number; // seed position, in cells
   y: number;
   r: number; // [0, 1): patch breaks the pattern when r < patternVariation
-  phase: number; // 1..3: shift of the diagonal cycle
-  mirror: boolean; // run the cycle along the other diagonal
+  phase: number; // 1..3: shift of the column cycle
+  mirror: boolean; // reverse the per-column phase shift (bands run along the other diagonal)
 };
 
 type GridCell = {
-  // Verticality is derived at draw time from the diagonal cycle, the cell's
+  // Verticality is derived at draw time from the column cycle, the cell's
   // patch, and rare per-cell overrides.
   patch: Patch;
   deviationPick: number; // [0, 1) pick of an alternative angle, or -1 for none
@@ -282,20 +287,23 @@ export class GridRenderer implements Renderer {
   }
 
   /**
-   * Verticality for cell (i, j). The base pattern cycles along diagonals
-   * (-0.5 -> 1 -> 0.5 -> 0 -> repeat as they move up/right). With
-   * patternVariation > 0, some patches shift or mirror that cycle and a few
-   * individual cells pick a different angle.
+   * Verticality for cell (i, j). The base pattern cycles up each column
+   * (COLUMN_VERTICALITY_PATTERN), with column i phase-shifted by
+   * i * COLUMN_PHASE_SHIFT. With patternVariation > 0, some patches shift
+   * that phase or reverse the per-column shift, and a few individual cells
+   * pick a different angle.
    */
   private cellVerticality(i: number, j: number, cell: GridCell): number {
-    const n = DIAGONAL_VERTICALITY_PATTERN.length;
+    const n = COLUMN_VERTICALITY_PATTERN.length;
     const variation = Math.max(0, Math.min(1, params.grid.patternVariation));
     const { patch } = cell;
-    let d = i - j;
+    // steps up the column (j counts down from the top)
+    const step = -j;
+    let columnPhase = i * COLUMN_PHASE_SHIFT;
     if (patch.r < variation) {
-      d = (patch.mirror ? -(i + j) : d) + patch.phase;
+      columnPhase = (patch.mirror ? -columnPhase : columnPhase) + patch.phase;
     }
-    let idx = ((d % n) + n) % n;
+    let idx = (((step + columnPhase) % n) + n) % n;
     let pick = cell.deviationPick;
     if (pick < 0 && cell.breakR < variation * CELL_BREAK_SCALE) {
       pick = cell.breakPick;
@@ -304,7 +312,7 @@ export class GridRenderer implements Renderer {
       // choose one of the other n-1 angles
       idx = (idx + 1 + Math.floor(pick * (n - 1))) % n;
     }
-    return DIAGONAL_VERTICALITY_PATTERN[idx];
+    return COLUMN_VERTICALITY_PATTERN[idx];
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
@@ -319,8 +327,11 @@ export class GridRenderer implements Renderer {
     const halfW = halfStepX + dilation;
     const halfH = halfStepY + dilation;
 
-    for (let j = 0; j < rows; j++) {
-      for (let i = 0; i < cols; i++) {
+    // Draw column by column, alternating down and up (boustrophedon).
+    for (let i = 0; i < cols; i++) {
+      const goingDown = i % 2 === 0;
+      for (let k = 0; k < rows; k++) {
+        const j = goingDown ? k : rows - 1 - k;
         const cell = this.cells[j][i];
         const cx = originX + i * stepX;
         const cy = originY + j * stepY;

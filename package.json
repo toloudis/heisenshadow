@@ -8,7 +8,9 @@
     "build": "tsc && vite build --base=/heisenshadow/",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "lint": "biome check .",
+    "format": "biome format --write ."
   },
   "dependencies": {
     "@tweakpane/plugin-essentials": "^0.2.1",
