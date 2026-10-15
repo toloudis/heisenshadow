@@ -100,4 +100,60 @@ function loadParamsFromObj(obj: Params) {
   }
 }
 
-export { loadParamsFromObj, params };
+// ---- URL query string (de)serialization ------------------------------------
+// Every leaf of `params` maps to a flat query key using dotted paths, e.g.
+// `thickness=0.048&grid.cellPx=20`. The current value's type in `params`
+// decides how the string from the URL is parsed.
+type ParamLeaf = number | boolean | string;
+type ParamTree = { [key: string]: ParamLeaf | ParamTree };
+
+// Runtime state rather than part of the view. The active mode is stored in the
+// URL by its mode id instead (see main.ts), since `mode` alone is ambiguous.
+const URL_EXCLUDED_KEYS = new Set(["mode", "isDrawing"]);
+
+function forEachLeaf(
+  obj: ParamTree,
+  fn: (path: string, holder: ParamTree, key: string) => void,
+  prefix = "",
+) {
+  for (const key of Object.keys(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    const value = obj[key];
+    if (typeof value === "object") {
+      forEachLeaf(value, fn, path);
+    } else {
+      fn(path, obj, key);
+    }
+  }
+}
+
+function writeParamsToSearchParams(search: URLSearchParams) {
+  forEachLeaf(params as unknown as ParamTree, (path, holder, key) => {
+    if (URL_EXCLUDED_KEYS.has(path)) return;
+    search.set(path, String(holder[key]));
+  });
+}
+
+function loadParamsFromSearchParams(search: URLSearchParams) {
+  forEachLeaf(params as unknown as ParamTree, (path, holder, key) => {
+    if (URL_EXCLUDED_KEYS.has(path)) return;
+    const raw = search.get(path);
+    if (raw === null) return;
+    const current = holder[key];
+    if (typeof current === "number") {
+      const n = Number(raw);
+      if (raw.trim() !== "" && Number.isFinite(n)) holder[key] = n;
+    } else if (typeof current === "boolean") {
+      if (raw === "true" || raw === "false") holder[key] = raw === "true";
+    } else {
+      holder[key] = raw;
+    }
+  });
+}
+
+export {
+  loadParamsFromObj,
+  loadParamsFromSearchParams,
+  params,
+  writeParamsToSearchParams,
+};

@@ -7,6 +7,14 @@ let loadingUrl = "";
 let sampleW = 0;
 let sampleH = 0;
 let sampleData: Uint8ClampedArray | null = null;
+let onMapChanged: (() => void) | null = null;
+
+// Images load asynchronously, so a frame drawn right after enabling the map
+// (or changing its url) uses multiplier 1. Register a callback to redraw once
+// the map actually changes.
+export function setImageThicknessMapChangedCallback(cb: () => void) {
+  onMapChanged = cb;
+}
 
 function resetMap() {
   sampleData = null;
@@ -48,6 +56,7 @@ function beginLoad(url: string) {
     sampleData = imgData.data;
     loadedUrl = url;
     loadingUrl = "";
+    onMapChanged?.();
   };
 
   img.onerror = () => {
@@ -58,6 +67,7 @@ function beginLoad(url: string) {
       loadedUrl = "";
     }
     resetMap();
+    onMapChanged?.();
   };
 
   img.src = url;

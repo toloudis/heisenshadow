@@ -13,7 +13,13 @@ import {
 import "./style.css";
 import { Canvas } from "./canvas";
 import { GridRenderer } from "./gridRenderer";
-import { loadParamsFromObj, params } from "./params";
+import { setImageThicknessMapChangedCallback } from "./imageThicknessMap";
+import {
+  loadParamsFromObj,
+  loadParamsFromSearchParams,
+  params,
+  writeParamsToSearchParams,
+} from "./params";
 import type { Renderer } from "./renderer";
 import { VoronoiRadialRenderer } from "./voronoiRadialRenderer";
 import { VoronoiRadialRendererRetained } from "./voronoiRadialRendererRetained";
@@ -49,9 +55,30 @@ function render(ctx: CanvasRenderingContext2D, _t: DOMHighResTimeStamp) {
 }
 END IFDEF */
 
+// Load any params shared via the URL before anything reads them.
+const initialSearch = new URLSearchParams(window.location.search);
+loadParamsFromSearchParams(initialSearch);
+
 const canvasElement = document.querySelector<HTMLCanvasElement>("#canvas");
 if (!canvasElement) throw new Error("Canvas element not found");
 const paper = new Canvas(canvasElement, params.canvasAspect);
+
+// Push param values that live outside `params` into their consumers. Needed
+// whenever params are replaced wholesale (URL on startup, Load Settings).
+function applyParamSideEffects() {
+  setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
+  setCurveUniformity(params.uniformity);
+  paper.setAutoClear(params.clearInBetween);
+}
+applyParamSideEffects();
+
+// The thickness image loads asynchronously; redraw when it arrives so a paused
+// scene reflects it.
+setImageThicknessMapChangedCallback(() => {
+  if (!params.isDrawing) {
+    paper.draw(0.0);
+  }
+});
 const voronoiRenderer = new VoronoiRadialRenderer(paper);
 const gridRenderer = new GridRenderer(paper);
 
@@ -173,11 +200,25 @@ function setActiveSettingsFolder(modeId: string) {
   }
 }
 
+// Mirror the current view (mode + all params) into the URL so it can be
+// bookmarked or shared. replaceState avoids flooding history on every tweak.
+let activeModeId = DEFAULT_MODE_ID;
+function syncUrl() {
+  const search = new URLSearchParams();
+  search.set("mode", activeModeId);
+  writeParamsToSearchParams(search);
+  const url = new URL(window.location.href);
+  url.search = search.toString();
+  window.history.replaceState(null, "", url);
+}
+
 function selectMode(mode: ModeDef, btnEl: HTMLElement) {
   paper.setRenderer(mode.activate());
   params.mode = mode.modeValue;
   setActiveRendererBtn(btnEl);
   setActiveSettingsFolder(mode.id);
+  activeModeId = mode.id;
+  syncUrl();
   // Refresh once so the new renderer's output is visible immediately,
   // even while paused. (Auto-clears if clearInBetween is on.)
   paper.draw(0);
@@ -190,12 +231,15 @@ for (const mode of MODES) {
   modeButtons.set(mode.id, btn.element);
 }
 
-// Apply the default mode (drives initial renderer, params.mode, and highlight).
-const defaultMode = MODES.find((m) => m.id === DEFAULT_MODE_ID);
-if (defaultMode) {
-  const modeButton = modeButtons.get(DEFAULT_MODE_ID);
+// Apply the initial mode from the URL, falling back to the default (drives
+// initial renderer, params.mode, and highlight).
+const initialMode =
+  MODES.find((m) => m.id === initialSearch.get("mode")) ??
+  MODES.find((m) => m.id === DEFAULT_MODE_ID);
+if (initialMode) {
+  const modeButton = modeButtons.get(initialMode.id);
   if (modeButton) {
-    selectMode(defaultMode, modeButton);
+    selectMode(initialMode, modeButton);
   }
 }
 pane
@@ -254,9 +298,9 @@ for (const mode of MODES) {
   mode.settings(folder);
   modeSettingsFolders.set(mode.id, folder);
 }
-// Re-apply visibility now that folders exist (default mode was selected
+// Re-apply visibility now that folders exist (initial mode was selected
 // before its folder was created).
-setActiveSettingsFolder(DEFAULT_MODE_ID);
+setActiveSettingsFolder(activeModeId);
 
 tip(
   fPaper.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 }),
@@ -395,8 +439,10 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
     reader.onload = (event: ProgressEvent<FileReader>) => {
       const obj = JSON.parse(event?.target?.result as string);
       loadParamsFromObj(obj);
+      applyParamSideEffects();
       // update ui
       pane.refresh();
+      syncUrl();
     };
     const files = (e.target as HTMLInputElement).files;
     if (files !== null) {
@@ -406,9 +452,18 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
   fileinput.click();
 });
 
-// When any pane binding changes (slider, checkbox, etc.) while the animation
-// is paused, redraw once so the change is visible immediately.
+pane.addButton({ title: "Copy Link" }).on("click", () => {
+  syncUrl();
+  navigator.clipboard.writeText(window.location.href).catch((err) => {
+    console.error("Failed to copy link", err);
+  });
+});
+
+// When any pane binding changes (slider, checkbox, etc.) keep the URL in sync,
+// and while the animation is paused, redraw once so the change is visible
+// immediately.
 pane.on("change", () => {
+  syncUrl();
   if (!params.isDrawing) {
     paper.draw(0.0);
   }
