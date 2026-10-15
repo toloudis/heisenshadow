@@ -24,6 +24,7 @@ type Params = {
     cellPx: number;
     verticalThickness: number;
     orientationVariationProbability: number;
+    patternVariation: number;
   };
 };
 
@@ -54,6 +55,7 @@ const params: Params = {
     cellPx: 20,
     verticalThickness: 0.0,
     orientationVariationProbability: 1 / 25,
+    patternVariation: 0.0,
   },
 };
 
@@ -92,6 +94,9 @@ function loadParamsFromObj(obj: Params) {
   ) {
     params.grid.orientationVariationProbability = obj.grid
       .orientationVariationProbability as number;
+  }
+  if (obj.grid && typeof obj.grid.patternVariation === "number") {
+    params.grid.patternVariation = obj.grid.patternVariation as number;
   }
 }
 

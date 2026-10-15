@@ -13,9 +13,27 @@ const DIAGONAL_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 // jitter driven by params.linelengthVariation.
 const REF_SIZE = 1.0;
 
+// Approximate spacing, in cells, between pattern-variation patch seeds.
+const PATCH_SPACING = 5;
+// Fraction of patternVariation used as the chance an individual cell breaks.
+const CELL_BREAK_SCALE = 0.1;
+
+// A patch is a blob of cells (octagon-ish, from the distance metric used to
+// assign cells to seeds) that can shift or mirror the diagonal angle cycle.
+// The randoms are cached so that params.grid.patternVariation is live.
+type Patch = {
+  r: number; // [0, 1): patch breaks the pattern when r < patternVariation
+  phase: number; // 1..3: shift of the diagonal cycle
+  mirror: boolean; // run the cycle along the other diagonal
+};
+
 type GridCell = {
-  // mostly deterministic from the diagonal cycle, with rare per-cell overrides
-  verticality: number; // one of DIAGONAL_VERTICALITY_PATTERN
+  // Verticality is derived at draw time from the diagonal cycle, the cell's
+  // patch, and rare per-cell overrides.
+  patch: number; // index into GridRenderer.patches
+  deviationPick: number; // [0, 1) pick of an alternative angle, or -1 for none
+  breakR: number; // [0, 1): cell breaks when breakR < patternVariation * CELL_BREAK_SCALE
+  breakPick: number; // [0, 1) pick of an alternative angle for a per-cell break
   angleJitter01: number; // uniform in [-1, 1], scaled by params.angleVariation at draw time
   thicknessJitter01: number; // uniform in [-1, 1], scaled by params.thicknessVariation at draw time
   strokes: Stroke[]; // pre-built bezier curves at unit reference size
@@ -47,6 +65,10 @@ export class GridRenderer implements Renderer {
   private cachedCanvasH: number = 0;
 
   private cells: GridCell[][] = [];
+  private patches: Patch[] = [];
+  private patchSeeds: { x: number; y: number }[] = [];
+  private patchCols: number = 0;
+  private patchRows: number = 0;
 
   constructor(paper: Canvas) {
     this.framet = 0;
@@ -166,6 +188,10 @@ export class GridRenderer implements Renderer {
       this.cells.length === rows &&
       (rows === 0 || this.cells[0].length === cols);
 
+    if (!reuseRandomness) {
+      this.buildPatches(cols, rows);
+    }
+
     const newCells: GridCell[][] = [];
     const deviationMask: boolean[][] = Array.from({ length: rows }, () =>
       Array(cols).fill(false),
@@ -173,37 +199,33 @@ export class GridRenderer implements Renderer {
     for (let j = 0; j < rows; j++) {
       const row: GridCell[] = [];
       for (let i = 0; i < cols; i++) {
-        let verticality: number;
+        let patch: number;
+        let deviationPick = -1;
+        let breakR: number;
+        let breakPick: number;
         let angleJitter01: number;
         let thicknessJitter01: number;
         if (reuseRandomness) {
           const prev = this.cells[j][i];
-          verticality = prev.verticality;
+          patch = prev.patch;
+          deviationPick = prev.deviationPick;
+          breakR = prev.breakR;
+          breakPick = prev.breakPick;
           angleJitter01 = prev.angleJitter01;
           thicknessJitter01 = prev.thicknessJitter01;
         } else {
-          // Diagonals cycle as they move up/right:
-          // -0.5 -> 1 -> 0.5 -> 0 -> repeat.
-          const diagonal = i - j;
-          const idx =
-            ((diagonal % DIAGONAL_VERTICALITY_PATTERN.length) +
-              DIAGONAL_VERTICALITY_PATTERN.length) %
-            DIAGONAL_VERTICALITY_PATTERN.length;
-          verticality = DIAGONAL_VERTICALITY_PATTERN[idx];
-
+          patch = this.nearestPatch(i, j);
           // Deviating cells are probability-driven, but kept spatially apart
           // so they don't cluster too tightly.
           if (
             Math.random() < orientationVariationProbability &&
             !hasNearbyDeviation(i, j, deviationMask)
           ) {
-            const alternatives = DIAGONAL_VERTICALITY_PATTERN.filter(
-              (v) => v !== verticality,
-            );
-            verticality =
-              alternatives[Math.floor(Math.random() * alternatives.length)];
+            deviationPick = Math.random();
             deviationMask[j][i] = true;
           }
+          breakR = Math.random();
+          breakPick = Math.random();
           angleJitter01 = rand(-1, 1);
           thicknessJitter01 = rand(-1, 1);
         }
@@ -216,7 +238,10 @@ export class GridRenderer implements Renderer {
         }
 
         row.push({
-          verticality,
+          patch,
+          deviationPick,
+          breakR,
+          breakPick,
           angleJitter01,
           thicknessJitter01,
           strokes,
@@ -235,6 +260,84 @@ export class GridRenderer implements Renderer {
     this.cachedUniformity = params.uniformity;
     this.cachedOrientationVariationProbability =
       params.grid.orientationVariationProbability;
+  }
+
+  /**
+   * Scatter patch seeds on a jittered grid (PATCH_SPACING cells apart), each
+   * with its own cached randomness.
+   */
+  private buildPatches(cols: number, rows: number) {
+    this.patchCols = Math.ceil(cols / PATCH_SPACING) + 1;
+    this.patchRows = Math.ceil(rows / PATCH_SPACING) + 1;
+    this.patches = [];
+    this.patchSeeds = [];
+    for (let gj = 0; gj < this.patchRows; gj++) {
+      for (let gi = 0; gi < this.patchCols; gi++) {
+        this.patchSeeds.push({
+          x: (gi + rand(0.1, 0.9)) * PATCH_SPACING,
+          y: (gj + rand(0.1, 0.9)) * PATCH_SPACING,
+        });
+        this.patches.push({
+          r: Math.random(),
+          phase: 1 + Math.floor(Math.random() * 3),
+          mirror: Math.random() < 0.5,
+        });
+      }
+    }
+  }
+
+  /**
+   * Index of the patch whose seed is nearest to cell (i, j). Distance is an
+   * octagonal metric (max + half of min), so patches come out octagon-ish,
+   * like the stamped rings in the reference print.
+   */
+  private nearestPatch(i: number, j: number): number {
+    const gi0 = Math.floor(i / PATCH_SPACING);
+    const gj0 = Math.floor(j / PATCH_SPACING);
+    let best = 0;
+    let bestD = Infinity;
+    for (let gj = gj0 - 1; gj <= gj0 + 1; gj++) {
+      if (gj < 0 || gj >= this.patchRows) continue;
+      for (let gi = gi0 - 1; gi <= gi0 + 1; gi++) {
+        if (gi < 0 || gi >= this.patchCols) continue;
+        const k = gj * this.patchCols + gi;
+        const seed = this.patchSeeds[k];
+        const dx = Math.abs(i + 0.5 - seed.x);
+        const dy = Math.abs(j + 0.5 - seed.y);
+        const d = Math.max(dx, dy) + 0.5 * Math.min(dx, dy);
+        if (d < bestD) {
+          bestD = d;
+          best = k;
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Verticality for cell (i, j). The base pattern cycles along diagonals
+   * (-0.5 -> 1 -> 0.5 -> 0 -> repeat as they move up/right). With
+   * patternVariation > 0, some patches shift or mirror that cycle and a few
+   * individual cells pick a different angle.
+   */
+  private cellVerticality(i: number, j: number, cell: GridCell): number {
+    const n = DIAGONAL_VERTICALITY_PATTERN.length;
+    const variation = Math.max(0, Math.min(1, params.grid.patternVariation));
+    const patch = this.patches[cell.patch];
+    let d = i - j;
+    if (patch && patch.r < variation) {
+      d = (patch.mirror ? -(i + j) : d) + patch.phase;
+    }
+    let idx = ((d % n) + n) % n;
+    let pick = cell.deviationPick;
+    if (pick < 0 && cell.breakR < variation * CELL_BREAK_SCALE) {
+      pick = cell.breakPick;
+    }
+    if (pick >= 0) {
+      // choose one of the other n-1 angles
+      idx = (idx + 1 + Math.floor(pick * (n - 1))) % n;
+    }
+    return DIAGONAL_VERTICALITY_PATTERN[idx];
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
@@ -261,8 +364,9 @@ export class GridRenderer implements Renderer {
         ctx.rect(cx - halfW, cy - halfH, halfW * 2, halfH * 2);
         ctx.clip();
 
+        const verticality = this.cellVerticality(i, j, cell);
         const angDeg =
-          (1.0 - cell.verticality) * 90.0 +
+          (1.0 - verticality) * 90.0 +
           cell.angleJitter01 * params.angleVariation;
         const ang = (angDeg * Math.PI) / 180.0;
         const cAng = Math.cos(ang);

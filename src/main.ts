@@ -134,6 +134,15 @@ const MODES: ModeDef[] = [
         }),
         "Chance each cell deviates from the diagonal orientation pattern. Higher values allow more off-pattern cells.",
       );
+      tip(
+        folder.addBinding(params.grid, "patternVariation", {
+          min: 0,
+          max: 1,
+          step: 0.01,
+          label: "pattern var.",
+        }),
+        "Breaks up the regular diagonal angle pattern. Octagon-shaped patches of cells shift or mirror the angle cycle, and a few single cells change angle. 0 = perfectly regular.",
+      );
     },
   },
 ];
