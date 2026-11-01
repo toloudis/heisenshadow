@@ -616,15 +616,20 @@ function updateJpegQualityVisibility() {
 }
 updateJpegQualityVisibility();
 
-// Read-only bindings poll their value, so the getter tracks the long edge and
-// paper aspect ratio.
+// The getter tracks the long edge and paper aspect ratio. Polling is off
+// (interval 0): a read-only binding normally rewrites its field 5×/s, which
+// makes the mouse cursor flicker everywhere on the page in Chrome on Windows.
+// Instead it's refreshed from the pane change handler below.
 const exportInfo = {
   get size() {
     const { w, h } = exportSize();
     return `${w} × ${h}`;
   },
 };
-fExport.addBinding(exportInfo, "size", { readonly: true });
+const exportSizeBinding = fExport.addBinding(exportInfo, "size", {
+  readonly: true,
+  interval: 0,
+});
 
 const EXPORT_TITLE = "Export Image";
 const exportButton = fExport.addButton({ title: EXPORT_TITLE });
@@ -673,6 +678,7 @@ exportButton.on("click", async () => {
 for (const p of panes) {
   p.on("change", (ev) => {
     syncUrl();
+    exportSizeBinding.refresh();
     if (!params.isDrawing && !exportBindings.has(ev.target)) {
       paper.draw(0.0);
     }
