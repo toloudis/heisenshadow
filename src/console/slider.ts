@@ -1,5 +1,6 @@
 import type { Accessor } from "./binding";
 import { type Keyboard, keyLabel } from "./keyboard";
+import { createLabel } from "./label";
 import {
   RangeControl,
   type RangeEvents,
@@ -48,7 +49,7 @@ export class SliderApi extends RangeControl {
     this.element.classList.add(
       this.horizontal ? "cc-horizontal" : "cc-vertical",
     );
-    el("div", "cc-label", this.element).textContent = options.label ?? "";
+    this.element.append(createLabel(options.label ?? ""));
     this.valueEl = el("div", "cc-slider-value", this.element);
     this.track = el("div", "cc-slider-track", this.element);
     el("div", "cc-slider-fill", this.track);

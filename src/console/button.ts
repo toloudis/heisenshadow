@@ -1,6 +1,7 @@
 import type { Accessor } from "./binding";
 import { Emitter } from "./emitter";
 import { type Keyboard, keyLabel } from "./keyboard";
+import { createLabel } from "./label";
 
 export type ButtonOptions = {
   /** Text shown on the button. */
@@ -68,10 +69,7 @@ export class ButtonApi {
     this.element = document.createElement("button");
     this.element.className = "cc-button";
     this.element.type = "button";
-    const label = document.createElement("span");
-    label.className = "cc-label";
-    label.textContent = options.label ?? "";
-    this.element.append(label);
+    this.element.append(createLabel(options.label ?? "", "span"));
     if (options.key) {
       const hint = document.createElement("span");
       hint.className = "cc-key-hint";

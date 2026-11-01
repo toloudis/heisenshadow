@@ -1,6 +1,7 @@
 import "./console.css";
 import {
   type Accessor,
+  bindNumber,
   bindProperty,
   type KeysOfType,
   localValue,
@@ -8,6 +9,7 @@ import {
 import { ButtonApi, type ButtonOptions } from "./button";
 import { DialApi, type DialOptions } from "./dial";
 import { Keyboard } from "./keyboard";
+import { createLabel } from "./label";
 import { SliderApi, type SliderOptions } from "./slider";
 import {
   SliderWithButtonApi,
@@ -67,7 +69,7 @@ export class ConsoleContainer {
     let accessor: Accessor<number>;
     let options: SliderOptions;
     if (typeof b === "string") {
-      accessor = bindProperty<number>(a as object, b);
+      accessor = bindNumber(a as object, b);
       options = c ?? {};
     } else {
       options = (a as SliderOptions | undefined) ?? {};
@@ -112,7 +114,7 @@ export class ConsoleContainer {
     let accessor: Accessor<number>;
     let options: DialOptions;
     if (typeof b === "string") {
-      accessor = bindProperty<number>(a as object, b);
+      accessor = bindNumber(a as object, b);
       options = c ?? {};
     } else {
       options = (a as DialOptions | undefined) ?? {};
@@ -139,7 +141,7 @@ export class ConsoleContainer {
     let accessor: Accessor<number>;
     let options: SliderWithButtonOptions;
     if (typeof b === "string") {
-      accessor = bindProperty<number>(a as object, b);
+      accessor = bindNumber(a as object, b);
       options = c ?? {};
     } else {
       options = (a as SliderWithButtonOptions | undefined) ?? {};
@@ -165,10 +167,7 @@ export class ConsoleContainer {
       ...options,
     });
     if (options.label) {
-      const label = document.createElement("div");
-      label.className = "cc-label";
-      label.textContent = options.label;
-      container.element.append(label);
+      container.element.append(createLabel(options.label));
     }
     return container;
   }

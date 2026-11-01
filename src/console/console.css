@@ -77,11 +77,22 @@
   gap: var(--cc-gap);
 }
 
+/* Long labels are cut off with "…" (and get a hover tooltip; see label.ts).
+ * max-width keeps a label within its control even where the parent centers
+ * rather than stretches it. */
 .cc-label {
+  max-width: 100%;
+  min-width: 0;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* The strip's width comes from its controls; a long label is cut off to fit
+ * instead of widening the strip. */
+.cc-strip > .cc-label {
+  align-self: stretch;
+  contain: inline-size;
 }
 
 .cc-key-hint {
@@ -260,6 +271,9 @@
 .cc-dial-text .cc-label {
   max-width: 60%;
   font-size: 9px;
+  /* The text overlay ignores the pointer so drags reach the dial; the label
+   * takes hover back for its tooltip (drags still bubble to the dial). */
+  pointer-events: auto;
 }
 .cc-dial-value {
   font-size: 10px;

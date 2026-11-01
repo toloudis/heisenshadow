@@ -22,6 +22,25 @@ export function bindProperty<V>(target: object, key: string): Accessor<V> {
   };
 }
 
+/**
+ * Bind to a property that must hold a single number. Sliders and dials only
+ * work with plain numbers, so anything else (a point, a string, a missing
+ * key) is an error rather than a control that silently misbehaves.
+ */
+export function bindNumber(target: object, key: string): Accessor<number> {
+  const value = (target as Record<string, unknown>)[key];
+  if (typeof value !== "number") {
+    const found =
+      value !== null && typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+    throw new TypeError(
+      `Console sliders and dials bind a single number, but "${key}" is ${found}.`,
+    );
+  }
+  return bindProperty<number>(target, key);
+}
+
 export function localValue<V>(initial: V): Accessor<V> {
   let value = initial;
   return {

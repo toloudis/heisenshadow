@@ -1,5 +1,6 @@
 import type { Accessor } from "./binding";
 import { type Keyboard, keyLabel } from "./keyboard";
+import { createLabel } from "./label";
 import {
   RangeControl,
   type RangeEvents,
@@ -98,9 +99,7 @@ export class DialApi extends RangeControl {
     // Label and value in the middle of the knob.
     const text = document.createElement("div");
     text.className = "cc-dial-text";
-    const labelEl = document.createElement("span");
-    labelEl.className = "cc-label";
-    labelEl.textContent = options.label ?? "";
+    const labelEl = createLabel(options.label ?? "", "span");
     this.valueEl = document.createElement("span");
     this.valueEl.className = "cc-dial-value";
     text.append(labelEl, this.valueEl);

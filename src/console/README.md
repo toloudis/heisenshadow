@@ -56,7 +56,7 @@ for (const label of ["A", "B", "C", "D"]) grid.addButton({ label });
 
 Every `add*` control method has two forms:
 
-- **Bound:** `addSlider(target, key, options)` reads and writes `target[key]` directly, like Tweakpane's `addBinding`. TypeScript only accepts keys whose values have the right type: numbers for sliders, booleans for buttons.
+- **Bound:** `addSlider(target, key, options)` reads and writes `target[key]` directly, like Tweakpane's `addBinding`. TypeScript only accepts keys whose values have the right type: numbers for sliders and dials, booleans for buttons. Sliders and dials also check at runtime and throw a `TypeError` if the property doesn't hold a single number (for example an `{x, y}` point), which catches targets that got past the types through a cast.
 - **Unbound:** `addSlider(options)`. The control keeps its own value. Read it with `.value`, or listen with `.on("change", …)`.
 
 If the target changes somewhere else (for example after loading settings), call `refresh()` on the console, a container, or a single control so the controls show the new values.
@@ -258,6 +258,8 @@ When not gated, the button's state is reached through `button.value` and `button
 | `--cc-gap`           | 6px     | Space between controls inside a container. |
 
 The colors (`--cc-bg`, `--cc-panel`, `--cc-fg`, `--cc-dim`, `--cc-accent`, `--cc-control`, `--cc-control-hover`) are defined in the same place. All class names start with `cc-`.
+
+Labels on every control are cut off with "…" when they don't fit, and hovering a cut-off label shows the full text as a tooltip.
 
 ## Source layout
 
