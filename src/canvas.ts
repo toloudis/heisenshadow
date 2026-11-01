@@ -34,10 +34,12 @@ export class Canvas {
 
     this.isPainting = false;
 
+    // Fit the canvas to its container (the space between the pane columns).
     this.setCanvasSize();
-    window.addEventListener("resize", () => {
-      this.setCanvasSize();
-    });
+    const container = canvas.parentElement;
+    if (container) {
+      new ResizeObserver(() => this.setCanvasSize()).observe(container);
+    }
 
     this.getCanvas().addEventListener(
       "pointerdown",
@@ -56,18 +58,25 @@ export class Canvas {
     return this.canvas;
   }
   private setCanvasSize() {
-    const windowAspect = window.innerWidth / window.innerHeight;
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-    if (this.paperAspect > windowAspect) {
-      this.canvas.width = w;
+    const container = this.canvas.parentElement;
+    const availW = container?.clientWidth ?? window.innerWidth;
+    const availH = container?.clientHeight ?? window.innerHeight;
+    let w = availW;
+    let h = availH;
+    if (this.paperAspect > availW / availH) {
       h = w / this.paperAspect;
-      this.canvas.height = h;
     } else {
-      this.canvas.height = h;
       w = h * this.paperAspect;
-      this.canvas.width = w;
     }
+    w = Math.floor(w);
+    h = Math.floor(h);
+    // Assigning canvas width/height wipes the drawing, so skip no-op resizes
+    // (e.g. the ResizeObserver's initial callback).
+    if (w === this.canvas.width && h === this.canvas.height) {
+      return;
+    }
+    this.canvas.width = w;
+    this.canvas.height = h;
     // set coordinate system to 0,0-1,1
     this.ctx.setTransform(w, 0, 0, h, 0, 0);
     //context.scale(canvas.width, canvas.height);
@@ -126,6 +135,11 @@ export class Canvas {
     this.ctx.fillStyle = "rgba(255,255,255,1)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = oldFill;
+  }
+
+  public setPaperAspect(paperAspect: number) {
+    this.paperAspect = paperAspect;
+    this.setCanvasSize();
   }
 
   public getRenderer(): Renderer | undefined {

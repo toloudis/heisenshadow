@@ -7,7 +7,13 @@
     <title>Vite App</title>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div id="app">
+      <div id="left-panes" class="pane-column"></div>
+      <main id="canvas-container">
+        <canvas id="canvas"></canvas>
+      </main>
+      <div id="right-panes" class="pane-column"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

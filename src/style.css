@@ -6,11 +6,34 @@ body {
   background-color: black;
 }
 
+/* Pane columns on the left and right; the canvas fills whatever is left. */
+#app {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.pane-column {
+  flex: none;
+  width: 280px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+#canvas-container {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 #canvas {
   background-color: white;
   display: block;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* Highlight the currently selected renderer button in the Tweakpane UI */

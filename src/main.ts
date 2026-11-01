@@ -63,12 +63,41 @@ const canvasElement = document.querySelector<HTMLCanvasElement>("#canvas");
 if (!canvasElement) throw new Error("Canvas element not found");
 const paper = new Canvas(canvasElement, params.canvasAspect);
 
+// Paper shapes as portrait width / height (<= 1); the orientation dropdown
+// flips them to landscape. All ISO A sizes (A3, A4, A5, ...) share the 1:√2
+// ratio, so they are a single entry. Video ratios keep their usual names.
+const PAPER_SIZES: Record<string, number> = {
+  "A4 / A5 / A3": 1 / Math.SQRT2,
+  Letter: 8.5 / 11,
+  Legal: 8.5 / 14,
+  Tabloid: 11 / 17,
+  "1:1": 1,
+  "4:3": 3 / 4,
+  "3:2": 2 / 3,
+  "16:9": 9 / 16,
+};
+
+// UI-only state for the paper dropdowns. params.canvasAspect remains the
+// single persisted value; this is derived from it and written back to it.
+const paperShape = { size: params.canvasAspect, orientation: "portrait" };
+function syncPaperShapeFromParams() {
+  const aspect = params.canvasAspect;
+  const portrait = Math.min(aspect, 1 / aspect);
+  paperShape.orientation = aspect > 1 ? "landscape" : "portrait";
+  // Snap to a preset so the dropdown shows its name despite float rounding.
+  paperShape.size =
+    Object.values(PAPER_SIZES).find((v) => Math.abs(v - portrait) < 1e-9) ??
+    portrait;
+}
+
 // Push param values that live outside `params` into their consumers. Needed
 // whenever params are replaced wholesale (URL on startup, Load Settings).
 function applyParamSideEffects() {
   setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   setCurveUniformity(params.uniformity);
   paper.setAutoClear(params.clearInBetween);
+  paper.setPaperAspect(params.canvasAspect);
+  syncPaperShapeFromParams();
 }
 applyParamSideEffects();
 
@@ -84,8 +113,18 @@ const gridRenderer = new GridRenderer(paper);
 
 //loadStrokeAssets(paper.ctx);
 
-const pane = new Pane();
-pane.registerPlugin(EssentialsPlugin);
+// Two panes flank the canvas: actions on the left, parameters on the right.
+function paneContainer(selector: string): HTMLElement {
+  const el = document.querySelector<HTMLElement>(selector);
+  if (!el) throw new Error(`Pane container ${selector} not found`);
+  return el;
+}
+const leftPane = new Pane({ container: paneContainer("#left-panes") });
+const rightPane = new Pane({ container: paneContainer("#right-panes") });
+const panes = [leftPane, rightPane];
+for (const p of panes) {
+  p.registerPlugin(EssentialsPlugin);
+}
 
 // ---- Renderer modes: single source of truth -------------------------------
 // Each entry describes a renderer button: its label, the legacy params.mode
@@ -226,7 +265,7 @@ function selectMode(mode: ModeDef, btnEl: HTMLElement) {
 
 const modeButtons = new Map<string, HTMLElement>();
 for (const mode of MODES) {
-  const btn = pane.addButton({ title: mode.title });
+  const btn = leftPane.addButton({ title: mode.title });
   btn.on("click", () => selectMode(mode, btn.element));
   modeButtons.set(mode.id, btn.element);
 }
@@ -242,7 +281,7 @@ if (initialMode) {
     selectMode(initialMode, modeButton);
   }
 }
-pane
+leftPane
   .addButton({
     title: "Clear",
   })
@@ -253,7 +292,7 @@ pane
     }
   });
 
-const fAnimation = pane.addFolder({ title: "Animation" });
+const fAnimation = leftPane.addFolder({ title: "Animation" });
 fAnimation
   .addButton({
     title: "Pause/Play",
@@ -281,11 +320,25 @@ fAnimation.addBinding(params, "clearInBetween").on("change", () => {
 // line length variation
 // stroke taper (-1..1)
 
-const fPaper = pane.addFolder({
+// The pane-level change handler runs before a binding's own handler, so it
+// syncs the URL and redraws with the old canvasAspect. Do both again here.
+function applyPaperShape() {
+  params.canvasAspect =
+    paperShape.orientation === "landscape"
+      ? 1 / paperShape.size
+      : paperShape.size;
+  paper.setPaperAspect(params.canvasAspect);
+  syncUrl();
+  if (!params.isDrawing) {
+    paper.draw(0.0);
+  }
+}
+
+const fPaper = rightPane.addFolder({
   title: "Paper",
 });
 
-const fMarks = pane.addFolder({
+const fMarks = rightPane.addFolder({
   title: "Marks",
 });
 
@@ -294,13 +347,31 @@ const fMarks = pane.addFolder({
 // UI. Only the active mode's folder is visible (managed by selectMode).
 for (const mode of MODES) {
   if (!mode.settings) continue;
-  const folder = pane.addFolder({ title: `${mode.title} Settings` });
+  const folder = rightPane.addFolder({ title: `${mode.title} Settings` });
   mode.settings(folder);
   modeSettingsFolders.set(mode.id, folder);
 }
 // Re-apply visibility now that folders exist (initial mode was selected
 // before its folder was created).
 setActiveSettingsFolder(activeModeId);
+
+tip(
+  fPaper
+    .addBinding(paperShape, "size", {
+      label: "aspect ratio",
+      options: PAPER_SIZES,
+    })
+    .on("change", applyPaperShape),
+  "Shape of the paper. Combined with orientation to set the canvas aspect ratio.",
+);
+tip(
+  fPaper
+    .addBinding(paperShape, "orientation", {
+      options: { Portrait: "portrait", Landscape: "landscape" },
+    })
+    .on("change", applyPaperShape),
+  "Portrait (taller than wide) or landscape (wider than tall).",
+);
 
 tip(
   fPaper.addBinding(params, "border", { min: 0, max: 0.2, step: 0.01 }),
@@ -455,7 +526,7 @@ tip(
   "Number of parallel strokes drawn at each cluster position.",
 );
 
-pane.addButton({ title: "Save Settings" }).on("click", () => {
+leftPane.addButton({ title: "Save Settings" }).on("click", () => {
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(
     new Blob([JSON.stringify(params, null, 2)], {
@@ -466,7 +537,7 @@ pane.addButton({ title: "Save Settings" }).on("click", () => {
   anchor.click();
 });
 
-pane.addButton({ title: "Load Settings" }).on("click", () => {
+leftPane.addButton({ title: "Load Settings" }).on("click", () => {
   const fileinput: HTMLInputElement = document.createElement("input");
   fileinput.type = "file";
   fileinput.style.display = "none";
@@ -477,7 +548,9 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
       loadParamsFromObj(obj);
       applyParamSideEffects();
       // update ui
-      pane.refresh();
+      for (const p of panes) {
+        p.refresh();
+      }
       syncUrl();
     };
     const files = (e.target as HTMLInputElement).files;
@@ -488,7 +561,7 @@ pane.addButton({ title: "Load Settings" }).on("click", () => {
   fileinput.click();
 });
 
-pane.addButton({ title: "Copy Link" }).on("click", () => {
+leftPane.addButton({ title: "Copy Link" }).on("click", () => {
   syncUrl();
   navigator.clipboard.writeText(window.location.href).catch((err) => {
     console.error("Failed to copy link", err);
@@ -498,9 +571,11 @@ pane.addButton({ title: "Copy Link" }).on("click", () => {
 // When any pane binding changes (slider, checkbox, etc.) keep the URL in sync,
 // and while the animation is paused, redraw once so the change is visible
 // immediately.
-pane.on("change", () => {
-  syncUrl();
-  if (!params.isDrawing) {
-    paper.draw(0.0);
-  }
-});
+for (const p of panes) {
+  p.on("change", () => {
+    syncUrl();
+    if (!params.isDrawing) {
+      paper.draw(0.0);
+    }
+  });
+}
