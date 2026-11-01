@@ -142,9 +142,8 @@ export class TrackpadApi {
   }
 
   // ---- pointer: press to jump, drag to move -----------------------------------
-  // The drag is tracked with window listeners rather than pointer capture: in
-  // Chrome on Windows, the pad's crosshair cursor stayed stuck to the pointer
-  // after a captured drag ended.
+  // The drag is tracked with window listeners, so it keeps going when the
+  // pointer leaves the pad.
 
   private setFromPointer(e: PointerEvent) {
     const rect = this.element.getBoundingClientRect();

@@ -343,7 +343,9 @@
   overflow: hidden;
   border-radius: 4px;
   background-color: var(--cc-control);
-  cursor: crosshair;
+  /* No cursor of its own (the pad draws crosshairs instead): in Chrome on
+   * Windows, a crosshair cursor here could stay stuck next to the arrow after
+   * a drag, until another control changed the cursor. */
   touch-action: none;
 }
 .cc-trackpad:hover {
