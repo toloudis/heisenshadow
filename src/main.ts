@@ -320,18 +320,12 @@ fAnimation.addBinding(params, "clearInBetween").on("change", () => {
 // line length variation
 // stroke taper (-1..1)
 
-// The pane-level change handler runs before a binding's own handler, so it
-// syncs the URL and redraws with the old canvasAspect. Do both again here.
 function applyPaperShape() {
   params.canvasAspect =
     paperShape.orientation === "landscape"
       ? 1 / paperShape.size
       : paperShape.size;
   paper.setPaperAspect(params.canvasAspect);
-  syncUrl();
-  if (!params.isDrawing) {
-    paper.draw(0.0);
-  }
 }
 
 const fPaper = rightPane.addFolder({
@@ -570,7 +564,8 @@ leftPane.addButton({ title: "Copy Link" }).on("click", () => {
 
 // When any pane binding changes (slider, checkbox, etc.) keep the URL in sync,
 // and while the animation is paused, redraw once so the change is visible
-// immediately.
+// immediately. Tweakpane fires this after the binding's own change handlers
+// (setCurveSize, applyPaperShape, ...), so their side effects are applied.
 for (const p of panes) {
   p.on("change", () => {
     syncUrl();
