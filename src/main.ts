@@ -3,28 +3,26 @@ import type { FolderApi } from "tweakpane";
 import { Pane } from "tweakpane";
 //import { ButtonGridApi } from "@tweakpane/plugin-essentials/dist/types/button-grid/api/button-grid";
 
-import {
-  //loadStrokeAssets,
-  setCurveSize,
-  setCurveUniformity,
-  //strokeImage,
-} from "./strokes";
+//import { loadStrokeAssets, strokeImage } from "./strokes";
 
 import "./style.css";
 import { Animator } from "./animation";
 import { Canvas } from "./canvas";
 import { ControlConsole } from "./console";
-import { GridRenderer } from "./gridRenderer";
 import { setImageThicknessMapChangedCallback } from "./imageThicknessMap";
 import {
+  allParams,
   loadParamsFromObj,
   loadParamsFromSearchParams,
   params,
   writeParamsToSearchParams,
 } from "./params";
 import type { Renderer, RendererSetting } from "./renderer";
-import { VoronoiRadialRenderer } from "./voronoiRadialRenderer";
-import { VoronoiRadialRendererRetained } from "./voronoiRadialRendererRetained";
+import { GridRenderer } from "./renderers/grid/gridRenderer";
+import { gridParams } from "./renderers/grid/settings";
+import { voronoiParams } from "./renderers/voronoi/settings";
+import { VoronoiRadialRenderer } from "./renderers/voronoi/voronoiRadialRenderer";
+import { VoronoiRadialRendererRetained } from "./renderers/voronoi/voronoiRadialRendererRetained";
 
 /** BEGIN IFDEF
 let lastx = 0;
@@ -92,16 +90,9 @@ function syncPaperShapeFromParams() {
     portrait;
 }
 
-// The stroke settings the strokes module caches from params.
-function applyStrokeSettings() {
-  setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
-  setCurveUniformity(params.uniformity);
-}
-
 // Push param values that live outside `params` into their consumers. Needed
 // whenever params are replaced wholesale (URL on startup, Load Settings).
 function applyParamSideEffects() {
-  applyStrokeSettings();
   paper.setAutoClear(params.clearInBetween);
   paper.setPaperAspect(params.canvasAspect);
   syncPaperShapeFromParams();
@@ -115,7 +106,7 @@ applyParamSideEffects();
 // playback (at a rate set by speed) and on Step, so pausing freezes the
 // animation. Console controls drive the
 // channels' amplitude / frequency / enabled fields (see the console section).
-const animator = new Animator(applyStrokeSettings);
+const animator = new Animator();
 // Playback speed scales animation time: 5 (the default) is real time, 10 is
 // double speed, 0 freezes it.
 const animationRate = () => params.speed / 5;
@@ -136,13 +127,13 @@ function stepFrame() {
   animator.advance(STEP_SECONDS * animationRate());
   paper.draw(1.0);
 }
-// Line length, for every mode: the voronoi modes use params.linelength, while
-// grid mode scales strokes relative to their cell by params.grid.lineLength
+// Line length, for every mode: the voronoi renderers use their linelength,
+// while the grid scales strokes relative to their cell by its lineLength
 // (above 1 they reach past the cell, clipped at the dilated cell edge).
 const lineLengthWave = animator
   .channel({ waveform: "sine", frequency: 0.5 })
-  .drive(params, "linelength", { depth: 0.03, min: 0 }) // ±0.03 at full amplitude
-  .drive(params.grid, "lineLength", { depth: 0.5, min: 0 }); // ±50% at full amplitude
+  .drive(voronoiParams, "linelength", { depth: 0.03, min: 0 }) // ±0.03 at full amplitude
+  .drive(gridParams, "lineLength", { depth: 0.5, min: 0 }); // ±50% at full amplitude
 
 // The thickness image loads asynchronously; redraw when it arrives so a paused
 // scene reflects it.
@@ -241,7 +232,9 @@ function addSettingBinding(folder: FolderApi, s: RendererSetting) {
   const range = definedOnly({ min: s.min, max: s.max });
   const options = isPoint
     ? { label: s.label, x: range, y: range }
-    : { label: s.label, ...range, ...definedOnly({ step: s.step }) };
+    : s.options
+      ? { label: s.label, options: s.options }
+      : { label: s.label, ...range, ...definedOnly({ step: s.step }) };
   return folder.addBinding(
     s.target as Record<string, unknown>,
     s.key,
@@ -350,13 +343,15 @@ const fPaper = rightPane.addFolder({
   title: "Paper",
 });
 
-const fMarks = rightPane.addFolder({
-  title: "Marks",
+// The thickness image is shared by every renderer. Each renderer's own marks
+// (thickness, dilation, ...) are in its settings panel.
+const fImage = rightPane.addFolder({
+  title: "Thickness Image",
 });
 
 // Apply the initial mode from the URL, falling back to the default (drives
-// initial renderer, its settings panel, and highlight). Done after Paper and
-// Marks exist, so the renderer's settings folder lands after them.
+// initial renderer, its settings panel, and highlight). Done after the fixed
+// folders exist, so the renderer's settings folder lands after them.
 const initialMode =
   MODES.find((m) => m.id === initialSearch.get("mode")) ??
   MODES.find((m) => m.id === DEFAULT_MODE_ID);
@@ -391,45 +386,13 @@ tip(
 );
 
 tip(
-  fMarks.addBinding(params, "verticality", {
-    min: -1,
-    max: 1,
-    step: 0.01,
-  }),
-  "How vertical the strokes are. -1/1 = vertical, 0 = horizontal, 0.5 = diagonal ↗, -0.5 = diagonal ↖.",
-);
-tip(
-  fMarks.addBinding(params, "angleVariation", {
-    min: 0,
-    max: 100,
-    step: 0.1,
-  }),
-  "Random angular jitter (in degrees) added to each stroke's orientation.",
-);
-tip(
-  fMarks.addBinding(params, "thickness", {
-    min: 0,
-    max: 0.1,
-    step: 0.001,
-  }),
-  "Base stroke line width (in normalized canvas units).",
-);
-tip(
-  fMarks.addBinding(params, "thicknessVariation", {
-    min: 0,
-    max: 1,
-    step: 0.01,
-  }),
-  "Per-stroke random variation of thickness, as a fraction of the base thickness.",
-);
-tip(
-  fMarks.addBinding(params, "imageThicknessEnabled", {
+  fImage.addBinding(params, "imageThicknessEnabled", {
     label: "thickness img",
   }),
   "Toggle image-driven thickness modulation. When off, strokes ignore the thickness image.",
 );
 const imageThicknessUrlBinding = tip(
-  fMarks.addBinding(params, "imageThicknessUrl", {
+  fImage.addBinding(params, "imageThicknessUrl", {
     label: "thickness img url",
   }),
   "Image URL used to modulate thickness by HSV value (darker = thicker). Clear to disable image-driven thickness.",
@@ -470,78 +433,11 @@ function addFilePickerButton(bindingEl: HTMLElement, accept: string) {
   valueEl.classList.add("tp-file-row");
   valueEl.append(btn, fileInput);
 }
-tip(
-  fMarks
-    .addBinding(params, "linelength", {
-      min: 0,
-      max: 0.1,
-      step: 0.001,
-    })
-    .on("change", () => {
-      setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
-    }),
-  "Length of each curve stroke (in normalized canvas units).",
-);
-tip(
-  fMarks
-    .addBinding(params, "linelengthVariation", {
-      min: 0,
-      max: 1.0,
-      step: 0.01,
-    })
-    .on("change", () => {
-      setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
-    }),
-  "Per-stroke random variation of line length, as a fraction of the base length.",
-);
-tip(
-  fMarks
-    .addBinding(params, "uniformity", {
-      min: 0,
-      max: 1,
-      step: 0.01,
-    })
-    .on("change", () => {
-      setCurveUniformity(params.uniformity);
-    }),
-  "How uniform the curve shape is. 1 = clean, 0 = wild bezier control points.",
-);
-// pane.addBinding(params, "strokeType", {
-//   options: {
-//     triLine: 0,
-//     bitmap0: 1,
-//     bitmap1: 2,
-//     bitmap2: 3,
-//     bitmap3: 4,
-//     bitmap4: 5,
-//     bitmap5: 6,
-//   },
-// });
-tip(
-  fMarks.addBinding(params, "dilation", {
-    min: 0,
-    max: 1,
-    step: 0.01,
-  }),
-  "Expands each cell's clipping region outward, letting strokes spill across cell boundaries.",
-);
-
-tip(
-  fMarks.addBinding(params, "multiplicity", {
-    options: {
-      "1": 1,
-      "2": 2,
-      "3": 3,
-      "4": 4,
-    },
-  }),
-  "Number of parallel strokes drawn at each cluster position.",
-);
 
 leftPane.addButton({ title: "Save Settings" }).on("click", () => {
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(
-    new Blob([JSON.stringify(params, null, 2)], {
+    new Blob([JSON.stringify(allParams(), null, 2)], {
       type: "text/plain",
     }),
   );

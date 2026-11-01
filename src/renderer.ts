@@ -18,6 +18,8 @@ export type RendererSetting = {
   min?: number;
   max?: number;
   step?: number;
+  /** A fixed set of choices (label → value), shown as a dropdown in the pane. */
+  options?: Record<string, number>;
 };
 
 /** Describe a setting, checking that `key` is a property of `target`. */

@@ -1,8 +1,9 @@
-import { getImageThicknessMultiplier } from "./imageThicknessMap";
-import { params } from "./params";
-import { rand } from "./rand";
-import { type Renderer, type RendererSetting, setting } from "./renderer";
-import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
+import { getImageThicknessMultiplier } from "../../imageThicknessMap";
+import { params } from "../../params";
+import { rand } from "../../rand";
+import type { Renderer, RendererSetting } from "../../renderer";
+import { Stroke, setCurveSize, setCurveUniformity } from "../../strokes";
+import { gridParams, gridSettings } from "./settings";
 
 // Base pattern, read going up a column: "\", "|", "/", "-", repeating (i.e.
 // the "/", "-", "\", "|" cycle). Each column starts COLUMN_PHASE_SHIFT steps
@@ -13,8 +14,8 @@ const COLUMN_PHASE_SHIFT = 1;
 
 // Strokes are built at this reference half-length (sizex == sizey == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
-// cell based on its position and angle, then by params.grid.lineLength, and
-// optionally by a per-stroke length jitter driven by params.linelengthVariation.
+// cell based on its position and angle, then by gridParams.lineLength, and
+// optionally by a per-stroke length jitter driven by gridParams.linelengthVariation.
 // Strokes longer than the cell are clipped at the cell edge grown by dilation.
 const REF_SIZE = 1.0;
 
@@ -25,7 +26,7 @@ const CELL_BREAK_SCALE = 0.1;
 
 // A patch is a blob of cells (octagon-ish, from the distance metric used to
 // assign cells to seeds) that can shift or mirror the column angle cycle.
-// The randoms are cached so that params.grid.patternVariation is live.
+// The randoms are cached so that gridParams.patternVariation is live.
 type Patch = {
   x: number; // seed position, in cells
   y: number;
@@ -41,8 +42,8 @@ type GridCell = {
   deviationPick: number; // [0, 1) pick of an alternative angle, or -1 for none
   breakR: number; // [0, 1): cell breaks when breakR < patternVariation * CELL_BREAK_SCALE
   breakPick: number; // [0, 1) pick of an alternative angle for a per-cell break
-  angleJitter01: number; // uniform in [-1, 1], scaled by params.angleVariation at draw time
-  thicknessJitter01: number; // uniform in [-1, 1], scaled by params.thicknessVariation at draw time
+  angleJitter01: number; // uniform in [-1, 1], scaled by gridParams.angleVariation at draw time
+  thicknessJitter01: number; // uniform in [-1, 1], scaled by gridParams.thicknessVariation at draw time
   strokes: Stroke[]; // pre-built bezier curves at unit reference size
   strokeLenVar01: number[]; // per-stroke length jitter in [-1, 1]
 };
@@ -89,48 +90,7 @@ export class GridRenderer implements Renderer {
   private patchRows: number = 0;
 
   settings(): RendererSetting[] {
-    return [
-      setting(params.grid, "cellsAcross", {
-        min: 2,
-        max: 100,
-        step: 1,
-        label: "cells across",
-        tooltip:
-          "Number of grid cells along the shorter side of the paper. The longer side gets proportionally more, so cells stay roughly square. Independent of screen or export resolution.",
-      }),
-      setting(params.grid, "verticalThickness", {
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "vert. thickness",
-        tooltip:
-          "How much line thickness ramps from top (thin) to bottom (thick). 0 = uniform, 1 = full quadratic ramp.",
-      }),
-      setting(params.grid, "orientationVariationProbability", {
-        min: 0,
-        max: 0.5,
-        step: 0.001,
-        label: "orientation var.",
-        tooltip:
-          "Chance each cell deviates from the diagonal orientation pattern. Higher values allow more off-pattern cells.",
-      }),
-      setting(params.grid, "patternVariation", {
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "pattern var.",
-        tooltip:
-          "Breaks up the regular diagonal angle pattern. Octagon-shaped patches of cells shift or mirror the angle cycle, and a few single cells change angle. 0 = perfectly regular.",
-      }),
-      setting(params.grid, "lineLength", {
-        min: 0,
-        max: 2,
-        step: 0.01,
-        label: "line length",
-        tooltip:
-          "Stroke length relative to the cell. 1 = strokes reach the cell edges. Above 1 they extend past the cell, visible as far as dilation allows.",
-      }),
-    ];
+    return gridSettings();
   }
 
   clear(_ctx: CanvasRenderingContext2D) {}
@@ -153,9 +113,9 @@ export class GridRenderer implements Renderer {
    * the existing cache.
    */
   private ensureCache() {
-    // params.grid.cellsAcross cells along the shorter side of the paper; the
+    // gridParams.cellsAcross cells along the shorter side of the paper; the
     // longer side gets proportionally more, so cells stay roughly square.
-    const cellsAcross = Math.max(1, Math.round(params.grid.cellsAcross));
+    const cellsAcross = Math.max(1, Math.round(gridParams.cellsAcross));
     const aspect = params.canvasAspect;
     const cols =
       aspect <= 1 ? cellsAcross : Math.max(1, Math.round(cellsAcross * aspect));
@@ -178,9 +138,9 @@ export class GridRenderer implements Renderer {
       params.border,
       cols,
       rows,
-      params.grid.orientationVariationProbability,
+      gridParams.orientationVariationProbability,
     ].join();
-    const strokeKey = [params.multiplicity, params.uniformity].join();
+    const strokeKey = [gridParams.multiplicity, gridParams.uniformity].join();
     if (randomKey === this.randomKey && strokeKey === this.strokeKey) {
       return;
     }
@@ -191,13 +151,13 @@ export class GridRenderer implements Renderer {
 
     // Build strokes at unit reference size with no length variation. We scale
     // them at draw time to fit each cell.
-    setCurveUniformity(params.uniformity);
+    setCurveUniformity(gridParams.uniformity);
     setCurveSize(REF_SIZE, REF_SIZE, 0.0, 0.0);
 
-    const mult = Math.max(1, params.multiplicity);
+    const mult = Math.max(1, gridParams.multiplicity);
     const orientationVariationProbability = Math.max(
       0,
-      Math.min(1, params.grid.orientationVariationProbability),
+      Math.min(1, gridParams.orientationVariationProbability),
     );
 
     // Keep deviating cells from clustering. As probability decreases, expected
@@ -266,10 +226,6 @@ export class GridRenderer implements Renderer {
       newCells.push(row);
     }
     this.cells = newCells;
-
-    // Restore the shared curve size to whatever the params sliders dictate
-    // for other renderers.
-    setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
   }
 
   /**
@@ -328,7 +284,7 @@ export class GridRenderer implements Renderer {
    */
   private cellVerticality(i: number, j: number, cell: GridCell): number {
     const n = COLUMN_VERTICALITY_PATTERN.length;
-    const variation = Math.max(0, Math.min(1, params.grid.patternVariation));
+    const variation = Math.max(0, Math.min(1, gridParams.patternVariation));
     const { patch } = cell;
     // steps up the column (j counts down from the top)
     const step = -j;
@@ -350,14 +306,14 @@ export class GridRenderer implements Renderer {
 
   private drawGrid(ctx: CanvasRenderingContext2D) {
     const { rows, cols, stepX, stepY, originX, originY } = this.layout;
-    const mult = Math.max(1, params.multiplicity);
+    const mult = Math.max(1, gridParams.multiplicity);
     const triadSpacing = stepX / mult;
     const halfStepX = stepX * 0.5;
     const halfStepY = stepY * 0.5;
-    const lenVarAmt = params.linelengthVariation * 0.5;
-    const lineLength = Math.max(0, params.grid.lineLength);
+    const lenVarAmt = gridParams.linelengthVariation * 0.5;
+    const lineLength = Math.max(0, gridParams.lineLength);
 
-    const dilation = params.dilation * 0.01;
+    const dilation = gridParams.dilation * 0.01;
     const halfW = halfStepX + dilation;
     const halfH = halfStepY + dilation;
 
@@ -379,16 +335,18 @@ export class GridRenderer implements Renderer {
         const verticality = this.cellVerticality(i, j, cell);
         const angDeg =
           (1.0 - verticality) * 90.0 +
-          cell.angleJitter01 * params.angleVariation;
+          cell.angleJitter01 * gridParams.angleVariation;
         const ang = (angDeg * Math.PI) / 180.0;
         const cAng = Math.cos(ang);
         const sAng = Math.sin(ang);
 
         const thickness =
-          params.thickness +
-          cell.thicknessJitter01 * params.thicknessVariation * params.thickness;
+          gridParams.thickness +
+          cell.thicknessJitter01 *
+            gridParams.thicknessVariation *
+            gridParams.thickness;
         // Top-to-bottom thickness gradient. v=0 -> uniform, v=1 -> cy^2 ramp.
-        const v = params.grid.verticalThickness;
+        const v = gridParams.verticalThickness;
         const vGradient = 1 + v * (cy * cy - 1);
         const imageThickness = getImageThicknessMultiplier(cx, cy);
 

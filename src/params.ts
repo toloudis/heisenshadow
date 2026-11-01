@@ -1,31 +1,16 @@
+// App-wide params: the paper, playback, export, and the thickness image.
+//
+// Each renderer keeps its own params (including its own marks: thickness,
+// dilation, ...) in renderers/<name>/settings.ts and registers them here with
+// registerParams, so they're saved, loaded and put in the URL alongside these.
 type Params = {
   speed: number;
-  dilation: number;
   border: number;
   clearInBetween: boolean;
-  thickness: number;
-  thicknessVariation: number;
   imageThicknessEnabled: boolean;
   imageThicknessUrl: string;
-  uniformity: number;
-  verticality: number;
-  angleVariation: number;
   isDrawing: boolean;
   canvasAspect: number;
-  strokeType: number;
-  multiplicity: number;
-  linelength: number;
-  linelengthVariation: number;
-  radialVoronoi: {
-    center: { x: number; y: number };
-  };
-  grid: {
-    cellsAcross: number; // cells along the shorter side of the paper
-    verticalThickness: number;
-    orientationVariationProbability: number;
-    patternVariation: number;
-    lineLength: number; // stroke length relative to the cell (1 = reaches the cell edges)
-  };
   export: {
     format: string; // "png" | "jpeg"
     longEdge: number; // pixels along the longer side of the exported image
@@ -35,33 +20,13 @@ type Params = {
 
 const params: Params = {
   speed: 5,
-  dilation: 0.0,
   border: 0.04,
   clearInBetween: true,
-  thickness: 0.048,
-  thicknessVariation: 0.0,
   imageThicknessEnabled: false,
   imageThicknessUrl:
     "https://upload.wikimedia.org/wikipedia/commons/6/6a/Mona_Lisa.jpg",
-  uniformity: 0.7,
-  verticality: 1.0,
-  angleVariation: 8.0,
   isDrawing: false,
   canvasAspect: 8.5 / 11,
-  strokeType: 0,
-  multiplicity: 3,
-  linelength: 0.03,
-  linelengthVariation: 0.0,
-  radialVoronoi: {
-    center: { x: 0.0, y: 0.0 },
-  },
-  grid: {
-    cellsAcross: 35,
-    verticalThickness: 0.0,
-    orientationVariationProbability: 1 / 25,
-    patternVariation: 0.0,
-    lineLength: 1.0,
-  },
   export: {
     format: "png",
     longEdge: 4096,
@@ -69,71 +34,37 @@ const params: Params = {
   },
 };
 
-function loadParamsFromObj(obj: Params) {
-  params.angleVariation = obj.angleVariation as number;
-  params.clearInBetween = obj.clearInBetween as boolean;
-  params.speed = obj.speed as number;
-  params.thickness = obj.thickness as number;
-  params.thicknessVariation = obj.thicknessVariation as number;
-  if (typeof obj.imageThicknessEnabled === "boolean") {
-    params.imageThicknessEnabled = obj.imageThicknessEnabled as boolean;
-  }
-  if (typeof obj.imageThicknessUrl === "string") {
-    params.imageThicknessUrl = obj.imageThicknessUrl as string;
-  }
-  params.uniformity = obj.uniformity as number;
-  params.verticality = obj.verticality as number;
-  params.angleVariation = obj.angleVariation as number;
-  params.isDrawing = obj.isDrawing as boolean;
-  params.canvasAspect = obj.canvasAspect as number;
-  params.strokeType = obj.strokeType as number;
-  params.multiplicity = obj.multiplicity as number;
-  params.linelength = obj.linelength as number;
-  params.linelengthVariation = obj.linelengthVariation as number;
-  params.radialVoronoi.center.x = obj.radialVoronoi.center.x as number;
-  params.radialVoronoi.center.y = obj.radialVoronoi.center.y as number;
-  if (obj.grid && typeof obj.grid.cellsAcross === "number") {
-    params.grid.cellsAcross = obj.grid.cellsAcross as number;
-  }
-  if (obj.grid && typeof obj.grid.verticalThickness === "number") {
-    params.grid.verticalThickness = obj.grid.verticalThickness as number;
-  }
-  if (
-    obj.grid &&
-    typeof obj.grid.orientationVariationProbability === "number"
-  ) {
-    params.grid.orientationVariationProbability = obj.grid
-      .orientationVariationProbability as number;
-  }
-  if (obj.grid && typeof obj.grid.patternVariation === "number") {
-    params.grid.patternVariation = obj.grid.patternVariation as number;
-  }
-  if (obj.grid && typeof obj.grid.lineLength === "number") {
-    params.grid.lineLength = obj.grid.lineLength as number;
-  }
-  if (obj.export) {
-    if (obj.export.format === "png" || obj.export.format === "jpeg") {
-      params.export.format = obj.export.format;
-    }
-    if (typeof obj.export.longEdge === "number") {
-      params.export.longEdge = obj.export.longEdge;
-    }
-    if (typeof obj.export.jpegQuality === "number") {
-      params.export.jpegQuality = obj.export.jpegQuality;
-    }
-  }
-}
-
-// ---- URL query string (de)serialization ------------------------------------
-// Every leaf of `params` maps to a flat query key using dotted paths, e.g.
-// `thickness=0.048&grid.cellsAcross=35`. The current value's type in `params`
-// decides how the string from the URL is parsed.
+// ---- Registered renderer params ---------------------------------------------
 type ParamLeaf = number | boolean | string;
 type ParamTree = { [key: string]: ParamLeaf | ParamTree };
 
+const sections = new Map<string, ParamTree>();
+
+/**
+ * Register a renderer's params under `name`, so they're saved, loaded and
+ * kept in the URL (as `name.key`, e.g. `grid.thickness`). Returns `values`.
+ */
+function registerParams<T extends object>(name: string, values: T): T {
+  sections.set(name, values as unknown as ParamTree);
+  return values;
+}
+
+/** Every param, app-wide and registered, as one plain tree (e.g. for Save Settings). */
+function allParams(): ParamTree {
+  return {
+    ...(params as unknown as ParamTree),
+    ...Object.fromEntries(sections),
+  };
+}
+
+// ---- Saving and loading -----------------------------------------------------
+// Every leaf maps to a dotted path, e.g. `border`, `export.format`,
+// `grid.cellsAcross`. Loading only accepts a value of the same type as the
+// current one.
+
 // Runtime state rather than part of the view. (The active renderer mode isn't
 // a param; main.ts stores it in the URL by its mode id.)
-const URL_EXCLUDED_KEYS = new Set(["isDrawing"]);
+const EXCLUDED_KEYS = new Set(["isDrawing"]);
 
 function forEachLeaf(
   obj: ParamTree,
@@ -151,9 +82,75 @@ function forEachLeaf(
   }
 }
 
-function writeParamsToSearchParams(search: URLSearchParams) {
+/**
+ * Visit every param leaf. For registered params, `legacyPath` is the path
+ * the setting had when all renderers shared one set of params (`thickness`
+ * for `grid.thickness`), so older links and files still apply.
+ */
+function forEachParam(
+  fn: (
+    path: string,
+    holder: ParamTree,
+    key: string,
+    legacyPath?: string,
+  ) => void,
+) {
   forEachLeaf(params as unknown as ParamTree, (path, holder, key) => {
-    if (URL_EXCLUDED_KEYS.has(path)) return;
+    if (!EXCLUDED_KEYS.has(path)) fn(path, holder, key);
+  });
+  for (const [name, tree] of sections) {
+    forEachLeaf(tree, (path, holder, key) =>
+      fn(`${name}.${path}`, holder, key, path),
+    );
+  }
+}
+
+/**
+ * Set each param from `lookup(path)`, falling back to its legacy path, when
+ * the found value has (or for strings from the URL, parses to) the param's
+ * type. Missing or mismatched values leave the param as it is.
+ */
+function loadParams(lookup: (path: string) => unknown) {
+  forEachParam((path, holder, key, legacyPath) => {
+    let found = lookup(path);
+    if (found === undefined && legacyPath) found = lookup(legacyPath);
+    if (found === undefined) return;
+    const current = holder[key];
+    if (typeof current === "number") {
+      const n = typeof found === "string" ? Number(found) : found;
+      const blank = typeof found === "string" && found.trim() === "";
+      if (typeof n === "number" && Number.isFinite(n) && !blank) {
+        holder[key] = n;
+      }
+    } else if (typeof current === "boolean") {
+      if (typeof found === "boolean") holder[key] = found;
+      else if (found === "true" || found === "false") {
+        holder[key] = found === "true";
+      }
+    } else if (typeof found === "string") {
+      holder[key] = found;
+    }
+  });
+}
+
+/** Load params from a parsed settings file (as written by Save Settings). */
+function loadParamsFromObj(obj: unknown) {
+  loadParams((path) => {
+    let value: unknown = obj;
+    for (const part of path.split(".")) {
+      if (value === null || typeof value !== "object") return undefined;
+      value = (value as Record<string, unknown>)[part];
+    }
+    return value;
+  });
+}
+
+function loadParamsFromSearchParams(search: URLSearchParams) {
+  loadParams((path) => search.get(path) ?? undefined);
+}
+
+function writeParamsToSearchParams(search: URLSearchParams) {
+  forEachParam((path, holder, key) => {
     const value = holder[key];
     // Local-file urls (from the file picker) only work in this page session,
     // so they aren't shareable.
@@ -165,26 +162,11 @@ function writeParamsToSearchParams(search: URLSearchParams) {
   });
 }
 
-function loadParamsFromSearchParams(search: URLSearchParams) {
-  forEachLeaf(params as unknown as ParamTree, (path, holder, key) => {
-    if (URL_EXCLUDED_KEYS.has(path)) return;
-    const raw = search.get(path);
-    if (raw === null) return;
-    const current = holder[key];
-    if (typeof current === "number") {
-      const n = Number(raw);
-      if (raw.trim() !== "" && Number.isFinite(n)) holder[key] = n;
-    } else if (typeof current === "boolean") {
-      if (raw === "true" || raw === "false") holder[key] = raw === "true";
-    } else {
-      holder[key] = raw;
-    }
-  });
-}
-
 export {
+  allParams,
   loadParamsFromObj,
   loadParamsFromSearchParams,
   params,
+  registerParams,
   writeParamsToSearchParams,
 };
