@@ -121,11 +121,13 @@ paper.frameHooks = {
 };
 
 // Advance playback by one step and draw it. Shared by the pane's and the
-// console's Step buttons. The voronoi renderers also advance their own state
-// on each draw.
+// console's Step buttons. Renderers get the same slice of time as the
+// animation clock, in the milliseconds a playing frame passes them (the
+// voronoi renderers turn by an amount proportional to it, and apply speed
+// themselves).
 function stepFrame() {
   animator.advance(STEP_SECONDS * animationRate());
-  paper.draw(1.0);
+  paper.draw(STEP_SECONDS * 1000);
 }
 // Line length, for every mode: the voronoi renderers use their linelength,
 // while the grid scales strokes relative to their cell by its lineLength
