@@ -109,11 +109,22 @@ export class Canvas {
     this.renderFrame(dt);
   }
 
+  /**
+   * Called just before and just after every frame is rendered, including
+   * exports, e.g. to swap animated parameter values in and back out.
+   */
+  public frameHooks: { before?: () => void; after?: () => void } = {};
+
   private renderFrame(dt: number) {
     if (!this.renderer) return;
     this.frameSeed = newRandomSeed();
     setRandomSeed(this.frameSeed);
-    this.renderer.render(this.ctx, dt);
+    this.frameHooks.before?.();
+    try {
+      this.renderer.render(this.ctx, dt);
+    } finally {
+      this.frameHooks.after?.();
+    }
   }
 
   /**
@@ -141,7 +152,12 @@ export class Canvas {
     setupContext(ctx, w, h);
     if (this.renderer) {
       setRandomSeed(this.frameSeed);
-      this.renderer.render(ctx, 0);
+      this.frameHooks.before?.();
+      try {
+        this.renderer.render(ctx, 0);
+      } finally {
+        this.frameHooks.after?.();
+      }
     }
     return new Promise((resolve, reject) => {
       out.toBlob(

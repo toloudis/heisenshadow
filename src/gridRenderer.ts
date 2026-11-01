@@ -13,8 +13,9 @@ const COLUMN_PHASE_SHIFT = 1;
 
 // Strokes are built at this reference half-length (sizex == sizey == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
-// cell based on its position and angle, optionally with a per-stroke length
-// jitter driven by params.linelengthVariation.
+// cell based on its position and angle, then by params.grid.lineLength, and
+// optionally by a per-stroke length jitter driven by params.linelengthVariation.
+// Strokes longer than the cell are clipped at the cell edge grown by dilation.
 const REF_SIZE = 1.0;
 
 // Approximate spacing, in cells, between pattern-variation patch seeds.
@@ -309,6 +310,7 @@ export class GridRenderer implements Renderer {
     const halfStepX = stepX * 0.5;
     const halfStepY = stepY * 0.5;
     const lenVarAmt = params.linelengthVariation * 0.5;
+    const lineLength = Math.max(0, params.grid.lineLength);
 
     const dilation = params.dilation * 0.01;
     const halfW = halfStepX + dilation;
@@ -365,7 +367,8 @@ export class GridRenderer implements Renderer {
 
           const halfLen = (sMax - sMin) * 0.5;
           const centerS = (sMax + sMin) * 0.5;
-          const sc = halfLen * (1 + cell.strokeLenVar01[s] * lenVarAmt);
+          const sc =
+            halfLen * lineLength * (1 + cell.strokeLenVar01[s] * lenVarAmt);
           const sk = cell.strokes[s];
 
           ctx.save();

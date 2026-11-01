@@ -11,6 +11,7 @@ import {
 } from "./strokes";
 
 import "./style.css";
+import { Animator } from "./animation";
 import { Canvas } from "./canvas";
 import { ControlConsole } from "./console";
 import { GridRenderer } from "./gridRenderer";
@@ -91,16 +92,57 @@ function syncPaperShapeFromParams() {
     portrait;
 }
 
+// The stroke settings the strokes module caches from params.
+function applyStrokeSettings() {
+  setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
+  setCurveUniformity(params.uniformity);
+}
+
 // Push param values that live outside `params` into their consumers. Needed
 // whenever params are replaced wholesale (URL on startup, Load Settings).
 function applyParamSideEffects() {
-  setCurveSize(0.03, params.linelength, 0.0, params.linelengthVariation);
-  setCurveUniformity(params.uniformity);
+  applyStrokeSettings();
   paper.setAutoClear(params.clearInBetween);
   paper.setPaperAspect(params.canvasAspect);
   syncPaperShapeFromParams();
 }
 applyParamSideEffects();
+
+// ---- Animation channels -------------------------------------------------------
+// Each channel moves one numeric param along a waveform. Params keep their base
+// values (what the panes, URL and saved settings see); the animated values are
+// swapped in only while each frame renders. The clock runs only during
+// playback (at a rate set by speed) and on Step, so pausing freezes the
+// animation. Console controls drive the
+// channels' amplitude / frequency / enabled fields (see the console section).
+const animator = new Animator(applyStrokeSettings);
+// Playback speed scales animation time: 5 (the default) is real time, 10 is
+// double speed, 0 freezes it.
+const animationRate = () => params.speed / 5;
+// Animation time one Step advances at speed 5 (about six frames of playback).
+const STEP_SECONDS = 0.1;
+paper.frameHooks = {
+  before: () => {
+    animator.tick(params.isDrawing, animationRate());
+    animator.apply();
+  },
+  after: () => animator.restore(),
+};
+
+// Advance playback by one step and draw it. Shared by the pane's and the
+// console's Step buttons. The voronoi renderers also advance their own state
+// on each draw.
+function stepFrame() {
+  animator.advance(STEP_SECONDS * animationRate());
+  paper.draw(1.0);
+}
+// Line length, for every mode: the voronoi modes use params.linelength, while
+// grid mode scales strokes relative to their cell by params.grid.lineLength
+// (above 1 they reach past the cell, clipped at the dilated cell edge).
+const lineLengthWave = animator
+  .channel({ waveform: "sine", frequency: 0.5 })
+  .drive(params, "linelength", { depth: 0.03, min: 0 }) // ±0.03 at full amplitude
+  .drive(params.grid, "lineLength", { depth: 0.5, min: 0 }); // ±50% at full amplitude
 
 // The thickness image loads asynchronously; redraw when it arrives so a paused
 // scene reflects it.
@@ -209,6 +251,15 @@ const MODES: ModeDef[] = [
           label: "pattern var.",
         }),
         "Breaks up the regular diagonal angle pattern. Octagon-shaped patches of cells shift or mirror the angle cycle, and a few single cells change angle. 0 = perfectly regular.",
+      );
+      tip(
+        folder.addBinding(params.grid, "lineLength", {
+          min: 0,
+          max: 2,
+          step: 0.01,
+          label: "line length",
+        }),
+        "Stroke length relative to the cell. 1 = strokes reach the cell edges. Above 1 they extend past the cell, visible as far as dilation allows.",
       );
     },
   },
@@ -319,7 +370,7 @@ fAnimation
     title: "Step",
   })
   .on("click", () => {
-    paper.draw(1.0);
+    stepFrame();
   });
 const speedBinding = fAnimation.addBinding(params, "speed", {
   min: 0.0,
@@ -725,7 +776,7 @@ transport
   .on("change", applyIsDrawing);
 transport
   .addButton({ label: "step", mode: "continuous" })
-  .on("press", () => paper.draw(1.0));
+  .on("press", stepFrame);
 // Same range as the pane's speed slider. Refreshing that binding fires the
 // pane change handler, which also syncs the URL.
 transport
@@ -754,14 +805,19 @@ STRIP_KEYS.forEach((keys, i) => {
     buttonKey: keys.button,
   });
 });
-channels.addSliderWithButton({
-  label: "S5",
-  upKey: "t",
-  downKey: "g",
-  value: 0.5,
-  gated: true,
-  buttonKey: "b",
-});
+// Animation channel: the slider sets how far line length swings, and the gate
+// switches the animation on and off (off = lines keep their base length).
+channels
+  .addSliderWithButton(lineLengthWave, "amplitude", {
+    label: "length",
+    upKey: "t",
+    downKey: "g",
+    gated: true,
+    buttonKey: "b",
+  })
+  .on("enable", (on) => {
+    lineLengthWave.enabled = on;
+  });
 // Right: the button grid with a row of dials underneath.
 const gridColumn = controlConsole.addColumn();
 const consoleGrid = gridColumn.addGrid({ columns: 2 });

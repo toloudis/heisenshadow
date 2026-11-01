@@ -25,6 +25,7 @@ type Params = {
     verticalThickness: number;
     orientationVariationProbability: number;
     patternVariation: number;
+    lineLength: number; // stroke length relative to the cell (1 = reaches the cell edges)
   };
   export: {
     format: string; // "png" | "jpeg"
@@ -61,6 +62,7 @@ const params: Params = {
     verticalThickness: 0.0,
     orientationVariationProbability: 1 / 25,
     patternVariation: 0.0,
+    lineLength: 1.0,
   },
   export: {
     format: "png",
@@ -107,6 +109,9 @@ function loadParamsFromObj(obj: Params) {
   }
   if (obj.grid && typeof obj.grid.patternVariation === "number") {
     params.grid.patternVariation = obj.grid.patternVariation as number;
+  }
+  if (obj.grid && typeof obj.grid.lineLength === "number") {
+    params.grid.lineLength = obj.grid.lineLength as number;
   }
   if (obj.export) {
     if (obj.export.format === "png" || obj.export.format === "jpeg") {
