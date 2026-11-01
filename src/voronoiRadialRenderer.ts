@@ -2,7 +2,7 @@ import type { Canvas } from "./canvas";
 import { getImageThicknessMultiplier } from "./imageThicknessMap";
 import { params } from "./params";
 import { rand } from "./rand";
-import type { Renderer } from "./renderer";
+import { type Renderer, type RendererSetting, setting } from "./renderer";
 import { drawClusterParams } from "./strokes";
 import type { VNCell } from "./voronoi";
 import { createVoronoiFromRandomPoints, type VoronoiDiagram } from "./voronoi";
@@ -26,6 +26,17 @@ export class VoronoiRadialRenderer implements Renderer {
     // trivial voronoi diagram for typescript
     this.voronoi = createVoronoiFromRandomPoints(1.0, 1.0, 1);
     this.resize(paper.width(), paper.height());
+  }
+
+  settings(): RendererSetting[] {
+    if (this.mode !== "radial") return [];
+    return [
+      setting(params.radialVoronoi, "center", {
+        min: -1,
+        max: 1,
+        tooltip: "Center point used to compute spiral angles.",
+      }),
+    ];
   }
 
   clear(_ctx: CanvasRenderingContext2D) {}

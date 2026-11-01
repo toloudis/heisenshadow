@@ -22,7 +22,7 @@ import {
   params,
   writeParamsToSearchParams,
 } from "./params";
-import type { Renderer } from "./renderer";
+import type { Renderer, RendererSetting } from "./renderer";
 import { VoronoiRadialRenderer } from "./voronoiRadialRenderer";
 import { VoronoiRadialRendererRetained } from "./voronoiRadialRendererRetained";
 
@@ -170,13 +170,12 @@ for (const p of panes) {
 // ---- Renderer modes: single source of truth -------------------------------
 // Each entry describes a renderer button: its label and how to create its
 // Renderer. Every click creates a fresh instance, so modes never share state.
-// `settings`, if provided, populates a mode-specific folder in the UI that is
-// only visible while that mode is active.
+// A renderer's own settings panel comes from the renderer (see
+// showRendererSettings).
 type ModeDef = {
   id: string;
   title: string;
   create: () => Renderer;
-  settings?: (folder: FolderApi) => void;
 };
 const MODES: ModeDef[] = [
   {
@@ -188,15 +187,6 @@ const MODES: ModeDef[] = [
     id: "voronoi-radial",
     title: "Voronoi Radial",
     create: () => new VoronoiRadialRenderer(paper, "radial"),
-    settings: (folder) => {
-      tip(
-        folder.addBinding(params.radialVoronoi, "center", {
-          x: { min: -1, max: 1 },
-          y: { min: -1, max: 1 },
-        }),
-        "Center point used to compute spiral angles.",
-      );
-    },
   },
   {
     id: "retained",
@@ -207,60 +197,13 @@ const MODES: ModeDef[] = [
     id: "grid",
     title: "Grid",
     create: () => new GridRenderer(),
-    settings: (folder) => {
-      tip(
-        folder.addBinding(params.grid, "cellsAcross", {
-          min: 2,
-          max: 100,
-          step: 1,
-          label: "cells across",
-        }),
-        "Number of grid cells along the shorter side of the paper. The longer side gets proportionally more, so cells stay roughly square. Independent of screen or export resolution.",
-      );
-      tip(
-        folder.addBinding(params.grid, "verticalThickness", {
-          min: 0,
-          max: 1,
-          step: 0.01,
-          label: "vert. thickness",
-        }),
-        "How much line thickness ramps from top (thin) to bottom (thick). 0 = uniform, 1 = full quadratic ramp.",
-      );
-      tip(
-        folder.addBinding(params.grid, "orientationVariationProbability", {
-          min: 0,
-          max: 0.5,
-          step: 0.001,
-          label: "orientation var.",
-        }),
-        "Chance each cell deviates from the diagonal orientation pattern. Higher values allow more off-pattern cells.",
-      );
-      tip(
-        folder.addBinding(params.grid, "patternVariation", {
-          min: 0,
-          max: 1,
-          step: 0.01,
-          label: "pattern var.",
-        }),
-        "Breaks up the regular diagonal angle pattern. Octagon-shaped patches of cells shift or mirror the angle cycle, and a few single cells change angle. 0 = perfectly regular.",
-      );
-      tip(
-        folder.addBinding(params.grid, "lineLength", {
-          min: 0,
-          max: 2,
-          step: 0.01,
-          label: "line length",
-        }),
-        "Stroke length relative to the cell. 1 = strokes reach the cell edges. Above 1 they extend past the cell, visible as far as dilation allows.",
-      );
-    },
   },
 ];
 const DEFAULT_MODE_ID = "grid";
 
 // helper: set a native HTML tooltip on a Tweakpane binding row
-function tip<T extends { element: HTMLElement }>(binding: T, text: string): T {
-  binding.element.title = text;
+function tip<T extends { element: HTMLElement }>(binding: T, text?: string): T {
+  if (text) binding.element.title = text;
   return binding;
 }
 
@@ -274,13 +217,43 @@ function setActiveRendererBtn(el: HTMLElement) {
   activeRendererBtnEl.classList.add("tp-btn-active");
 }
 
-// Per-mode settings folders, populated below. Only the active mode's folder
-// is visible at a time.
-const modeSettingsFolders = new Map<string, FolderApi>();
-function setActiveSettingsFolder(modeId: string) {
-  for (const [id, folder] of modeSettingsFolders) {
-    folder.element.style.display = id === modeId ? "" : "none";
+// The active renderer's settings panel, rebuilt on every mode change from the
+// settings the new renderer describes. It's appended to the right pane, after
+// Paper and Marks.
+let rendererSettingsFolder: FolderApi | undefined;
+function showRendererSettings(renderer: Renderer, title: string) {
+  rendererSettingsFolder?.dispose();
+  rendererSettingsFolder = undefined;
+  const settings = renderer.settings?.() ?? [];
+  if (settings.length === 0) return;
+  rendererSettingsFolder = rightPane.addFolder({ title: `${title} Settings` });
+  for (const s of settings) {
+    tip(addSettingBinding(rendererSettingsFolder, s), s.tooltip);
   }
+}
+
+// Turn a renderer's setting description into a Tweakpane binding. Number
+// ranges apply to plain numbers, or to both axes of an {x, y} point.
+function addSettingBinding(folder: FolderApi, s: RendererSetting) {
+  const value = (s.target as Record<string, unknown>)[s.key];
+  const isPoint =
+    typeof value === "object" && value !== null && "x" in value && "y" in value;
+  const range = definedOnly({ min: s.min, max: s.max });
+  const options = isPoint
+    ? { label: s.label, x: range, y: range }
+    : { label: s.label, ...range, ...definedOnly({ step: s.step }) };
+  return folder.addBinding(
+    s.target as Record<string, unknown>,
+    s.key,
+    definedOnly(options),
+  );
+}
+
+// Drop undefined entries, so Tweakpane only sees options that were given.
+function definedOnly<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
 }
 
 // Mirror the current view (mode + all params) into the URL so it can be
@@ -296,9 +269,10 @@ function syncUrl() {
 }
 
 function selectMode(mode: ModeDef, btnEl: HTMLElement) {
-  paper.setRenderer(mode.create());
+  const renderer = mode.create();
+  paper.setRenderer(renderer);
+  showRendererSettings(renderer, mode.title);
   setActiveRendererBtn(btnEl);
-  setActiveSettingsFolder(mode.id);
   activeModeId = mode.id;
   syncUrl();
   // Refresh once so the new renderer's output is visible immediately,
@@ -313,17 +287,6 @@ for (const mode of MODES) {
   modeButtons.set(mode.id, btn.element);
 }
 
-// Apply the initial mode from the URL, falling back to the default (drives
-// initial renderer and highlight).
-const initialMode =
-  MODES.find((m) => m.id === initialSearch.get("mode")) ??
-  MODES.find((m) => m.id === DEFAULT_MODE_ID);
-if (initialMode) {
-  const modeButton = modeButtons.get(initialMode.id);
-  if (modeButton) {
-    selectMode(initialMode, modeButton);
-  }
-}
 leftPane
   .addButton({
     title: "Clear",
@@ -391,18 +354,18 @@ const fMarks = rightPane.addFolder({
   title: "Marks",
 });
 
-// Create one settings folder per mode that defines a `settings` callback.
-// Folders are positioned together here so they render consistently in the
-// UI. Only the active mode's folder is visible (managed by selectMode).
-for (const mode of MODES) {
-  if (!mode.settings) continue;
-  const folder = rightPane.addFolder({ title: `${mode.title} Settings` });
-  mode.settings(folder);
-  modeSettingsFolders.set(mode.id, folder);
+// Apply the initial mode from the URL, falling back to the default (drives
+// initial renderer, its settings panel, and highlight). Done after Paper and
+// Marks exist, so the renderer's settings folder lands after them.
+const initialMode =
+  MODES.find((m) => m.id === initialSearch.get("mode")) ??
+  MODES.find((m) => m.id === DEFAULT_MODE_ID);
+if (initialMode) {
+  const modeButton = modeButtons.get(initialMode.id);
+  if (modeButton) {
+    selectMode(initialMode, modeButton);
+  }
 }
-// Re-apply visibility now that folders exist (initial mode was selected
-// before its folder was created).
-setActiveSettingsFolder(activeModeId);
 
 tip(
   fPaper

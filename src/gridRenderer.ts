@@ -1,7 +1,7 @@
 import { getImageThicknessMultiplier } from "./imageThicknessMap";
 import { params } from "./params";
 import { rand } from "./rand";
-import type { Renderer } from "./renderer";
+import { type Renderer, type RendererSetting, setting } from "./renderer";
 import { Stroke, setCurveSize, setCurveUniformity } from "./strokes";
 
 // Base pattern, read going up a column: "\", "|", "/", "-", repeating (i.e.
@@ -87,6 +87,51 @@ export class GridRenderer implements Renderer {
   private patches: Patch[] = [];
   private patchCols: number = 0;
   private patchRows: number = 0;
+
+  settings(): RendererSetting[] {
+    return [
+      setting(params.grid, "cellsAcross", {
+        min: 2,
+        max: 100,
+        step: 1,
+        label: "cells across",
+        tooltip:
+          "Number of grid cells along the shorter side of the paper. The longer side gets proportionally more, so cells stay roughly square. Independent of screen or export resolution.",
+      }),
+      setting(params.grid, "verticalThickness", {
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: "vert. thickness",
+        tooltip:
+          "How much line thickness ramps from top (thin) to bottom (thick). 0 = uniform, 1 = full quadratic ramp.",
+      }),
+      setting(params.grid, "orientationVariationProbability", {
+        min: 0,
+        max: 0.5,
+        step: 0.001,
+        label: "orientation var.",
+        tooltip:
+          "Chance each cell deviates from the diagonal orientation pattern. Higher values allow more off-pattern cells.",
+      }),
+      setting(params.grid, "patternVariation", {
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: "pattern var.",
+        tooltip:
+          "Breaks up the regular diagonal angle pattern. Octagon-shaped patches of cells shift or mirror the angle cycle, and a few single cells change angle. 0 = perfectly regular.",
+      }),
+      setting(params.grid, "lineLength", {
+        min: 0,
+        max: 2,
+        step: 0.01,
+        label: "line length",
+        tooltip:
+          "Stroke length relative to the cell. 1 = strokes reach the cell edges. Above 1 they extend past the cell, visible as far as dilation allows.",
+      }),
+    ];
+  }
 
   clear(_ctx: CanvasRenderingContext2D) {}
   pointerMove(_e: PointerEvent, _relx: number, _rely: number) {
