@@ -6,6 +6,7 @@ import {
   localValue,
 } from "./binding";
 import { ButtonApi, type ButtonOptions } from "./button";
+import { DialApi, type DialOptions } from "./dial";
 import { Keyboard } from "./keyboard";
 import { SliderApi, type SliderOptions } from "./slider";
 import {
@@ -98,6 +99,26 @@ export class ConsoleContainer {
         a as ButtonOptions | undefined,
       ),
     );
+  }
+
+  /** Add a button-sized dial, optionally bound to a numeric property of `target`. */
+  addDial(options?: DialOptions): DialApi;
+  addDial<T extends object>(
+    target: T,
+    key: KeysOfType<T, number>,
+    options?: DialOptions,
+  ): DialApi;
+  addDial(a?: object | DialOptions, b?: string, c?: DialOptions): DialApi {
+    let accessor: Accessor<number>;
+    let options: DialOptions;
+    if (typeof b === "string") {
+      accessor = bindProperty<number>(a as object, b);
+      options = c ?? {};
+    } else {
+      options = (a as DialOptions | undefined) ?? {};
+      accessor = localValue(options.value ?? options.min ?? 0);
+    }
+    return this.add(new DialApi(accessor, this.keyboard, options));
   }
 
   /**

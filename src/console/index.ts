@@ -12,6 +12,8 @@ export {
   type GridOptions,
   type StripOptions,
 } from "./controlConsole";
+export { DialApi, type DialEvents, type DialOptions } from "./dial";
+export type { RangeEvents, RangeOptions } from "./rangeControl";
 export {
   type Orientation,
   SliderApi,

@@ -711,7 +711,12 @@ controlConsole.addSliderWithButton({
   gated: true,
   buttonKey: "b",
 });
-const consoleGrid = controlConsole.addGrid({ columns: 2 });
+// The button grid with a row of dials underneath.
+const gridColumn = controlConsole.addColumn();
+const consoleGrid = gridColumn.addGrid({ columns: 2 });
 for (let i = 0; i < 4; i++) {
   consoleGrid.addButton({ label: `G${i + 1}`, mode: "continuous" });
 }
+const dialRow = gridColumn.addRow({ panel: true });
+dialRow.addDial({ label: "D1", upKey: "i", downKey: "k" });
+dialRow.addDial({ label: "D2", upKey: "o", downKey: "l" });

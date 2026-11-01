@@ -1,6 +1,6 @@
 # console
 
-A control panel of large, hardware-style controls (vertical and horizontal sliders and square buttons), designed to be played from the keyboard like a DJ console. You build it in code like a Tweakpane pane, and each control can be bound to a property of a parameter object.
+A control panel of large, hardware-style controls (vertical and horizontal sliders, dials and square buttons), designed to be played from the keyboard like a DJ console. You build it in code like a Tweakpane pane, and each control can be bound to a property of a parameter object.
 
 Import everything from the folder's entry point, [index.ts](index.ts). The other modules are internal.
 
@@ -65,7 +65,7 @@ If the target changes somewhere else (for example after loading settings), call 
 
 A key can be a single letter or digit (`"q"`, `"7"`) or a [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code) (`"ArrowUp"`, `"Space"`). Keys are matched by physical position, so Shift and Caps Lock make no difference.
 
-- **Sliders** move smoothly for as long as the key is held, at `speed` (a fraction of the full range per second). A quick tap moves the slider by one `step`, or by 1/200 of the range if there is no step.
+- **Sliders and dials** move smoothly for as long as the key is held, at `speed` (a fraction of the full range per second). A quick tap moves them by one `step`, or by 1/200 of the range if there is no step.
 - **Buttons** react to the key the same way as to a mouse press: press on keydown, release on keyup.
 - Hotkeys are ignored while the user is typing in a text field and while Ctrl, Alt or Meta is held, so normal shortcuts still work.
 - If the window loses focus, every held key is released, so no slider keeps running.
@@ -116,7 +116,7 @@ These rules apply to every event:
 - **Setting a value from code fires the same events as user input.** For example, `slider.value = 3` fires `change`. To update a control without triggering events, change the target object and call `refresh()`.
 - **Containers have no events.** Only the controls listed below do.
 
-Each control's events are defined in its API section below. The event maps are also exported as types (`SliderEvents`, `ButtonEvents`, `SliderWithButtonEvents`) and documented in the source, so editors show the definitions on hover.
+Each control's events are defined in its API section below. The event maps are also exported as types (`SliderEvents`, `DialEvents`, `ButtonEvents`, `SliderWithButtonEvents`) and documented in the source, so editors show the definitions on hover.
 
 ## API reference
 
@@ -158,6 +158,24 @@ Creates the console and appends it to `container`. The console also handles the 
 | Event    | Payload                 | Fires when                                                                                                                                                                                           | Does not fire                                                                                                                |
 | -------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `change` | `number`, the new value | The value changes: while dragging, while a key is held (at most once per animation frame), on each key tap, or when `value` is set. The value is already clamped, snapped and written to the target. | From `refresh()`; when the value doesn't change, such as when a key is held at `min`/`max` or a move is smaller than `step`. |
+
+### `addDial([target, key,] options)` → `DialApi`
+
+A round knob, a little larger than a button (`--cc-dial-size`, 56px by default) so there is room to show its value. Apart from how it looks and how you drag it, it works exactly like a slider: same value handling, held-key motion and events.
+
+- **Arc:** runs from 7 o'clock (`min`) to 5 o'clock (`max`) and fills as the value rises. It turns the accent color while a key is held.
+- **Indicator:** a mark on the rim of the knob points at the current value.
+- **Light:** a small light in the gap at 6 o'clock. It is off when the value is at `min` and lit otherwise.
+- **Text:** the label and the current value are shown in the middle of the knob. If the dial has keys, the key hint is shown below the knob. Dials without keys have no hint row, so they stay compact.
+- **Pointer:** drag up to turn clockwise and down to turn back. Dragging 150px covers the full range, starting from wherever the dial was.
+
+| Option                                                     | Default        | Description                                                                                                                                                             |
+| ---------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `label`                                                    | none           | Short text shown in the middle of the knob, above the value. About five characters fit.                                                                                 |
+| `min`, `max`, `step`, `upKey`, `downKey`, `speed`, `value` | as for sliders | Same meaning as the slider options above.                                                                                                                               |
+| `format`                                                   | auto           | `(value) => string` for the value shown in the knob. By default it shows as many decimals as `step` has, or 2 without a step. Keep it short; about five characters fit. |
+
+**`DialApi` members and events** are the same as `SliderApi`'s: `value`, `on`, `refresh()`, `dispose()`, `element`, and a single `change` event with the same rules.
 
 ### `addButton([target, key,] options)` → `ButtonApi`
 
@@ -236,19 +254,21 @@ When not gated, the button's state is reached through `button.value` and `button
 | `--cc-button-size`   | 48px    | Width and height of every button.          |
 | `--cc-slider-width`  | 52px    | Width of vertical sliders.                 |
 | `--cc-slider-height` | 36px    | Height of horizontal sliders.              |
+| `--cc-dial-size`     | 56px    | Width and height of a dial's knob.         |
 | `--cc-gap`           | 6px     | Space between controls inside a container. |
 
 The colors (`--cc-bg`, `--cc-panel`, `--cc-fg`, `--cc-dim`, `--cc-accent`, `--cc-control`, `--cc-control-hover`) are defined in the same place. All class names start with `cc-`.
 
 ## Source layout
 
-| File                                                                                       | Contents                                                  |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [index.ts](index.ts)                                                                       | The public exports.                                       |
-| [controlConsole.ts](controlConsole.ts)                                                     | `ControlConsole` and the containers (`ConsoleContainer`). |
-| [slider.ts](slider.ts), [button.ts](button.ts), [sliderWithButton.ts](sliderWithButton.ts) | The controls.                                             |
-| [keyboard.ts](keyboard.ts)                                                                 | Hotkey handling (internal).                               |
-| [binding.ts](binding.ts), [emitter.ts](emitter.ts)                                         | Value binding and events (internal).                      |
-| [console.css](console.css)                                                                 | Styles and size variables.                                |
+| File                                                                                                           | Contents                                                                                |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [index.ts](index.ts)                                                                                           | The public exports.                                                                     |
+| [controlConsole.ts](controlConsole.ts)                                                                         | `ControlConsole` and the containers (`ConsoleContainer`).                               |
+| [slider.ts](slider.ts), [dial.ts](dial.ts), [button.ts](button.ts), [sliderWithButton.ts](sliderWithButton.ts) | The controls.                                                                           |
+| [rangeControl.ts](rangeControl.ts)                                                                             | The base class for sliders and dials: value handling, held keys and the `change` event. |
+| [keyboard.ts](keyboard.ts)                                                                                     | Hotkey handling (internal).                                                             |
+| [binding.ts](binding.ts), [emitter.ts](emitter.ts)                                                             | Value binding and events (internal).                                                    |
+| [console.css](console.css)                                                                                     | Styles and size variables.                                                              |
 
 The module has no runtime dependencies. It imports its own CSS, so it currently relies on a bundler that handles CSS imports, such as Vite. If it becomes a package, its own `package.json` and a TypeDoc build that reads the TSDoc comments in the source would be a natural fit.
