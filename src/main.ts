@@ -545,6 +545,7 @@ leftPane.addButton({ title: "Load Settings" }).on("click", () => {
       for (const p of panes) {
         p.refresh();
       }
+      updateJpegQualityVisibility();
       syncUrl();
     };
     const files = (e.target as HTMLInputElement).files;
@@ -562,14 +563,116 @@ leftPane.addButton({ title: "Copy Link" }).on("click", () => {
   });
 });
 
+// ---- Export -----------------------------------------------------------------
+const fExport = leftPane.addFolder({ title: "Export" });
+
+// Export settings don't affect the drawing. The pane change handler skips its
+// redraw for them, since a redraw re-randomizes the picture about to be
+// exported.
+const exportBindings = new Set<unknown>();
+
+function exportSize(): { w: number; h: number } {
+  const longEdge = Math.round(params.export.longEdge);
+  const aspect = params.canvasAspect;
+  return aspect >= 1
+    ? { w: longEdge, h: Math.round(longEdge / aspect) }
+    : { w: Math.round(longEdge * aspect), h: longEdge };
+}
+
+exportBindings.add(
+  tip(
+    fExport
+      .addBinding(params.export, "format", {
+        options: { PNG: "png", JPEG: "jpeg" },
+      })
+      .on("change", () => updateJpegQualityVisibility()),
+    "Image file format for export.",
+  ),
+);
+exportBindings.add(
+  tip(
+    fExport.addBinding(params.export, "longEdge", {
+      min: 256,
+      max: 16384,
+      step: 1,
+      label: "long edge (px)",
+    }),
+    "Pixels along the longer side of the exported image. The other side follows the paper aspect ratio.",
+  ),
+);
+const jpegQualityBinding = tip(
+  fExport.addBinding(params.export, "jpegQuality", {
+    min: 0.5,
+    max: 1,
+    step: 0.01,
+    label: "jpeg quality",
+  }),
+  "JPEG compression quality. 1 = best quality, largest file.",
+);
+exportBindings.add(jpegQualityBinding);
+function updateJpegQualityVisibility() {
+  jpegQualityBinding.hidden = params.export.format !== "jpeg";
+}
+updateJpegQualityVisibility();
+
+// Read-only bindings poll their value, so the getter tracks the long edge and
+// paper aspect ratio.
+const exportInfo = {
+  get size() {
+    const { w, h } = exportSize();
+    return `${w} × ${h}`;
+  },
+};
+fExport.addBinding(exportInfo, "size", { readonly: true });
+
+const EXPORT_TITLE = "Export Image";
+const exportButton = fExport.addButton({ title: EXPORT_TITLE });
+tip(
+  exportButton,
+  "Redraws the current frame at the export resolution and downloads it.",
+);
+exportButton.on("click", async () => {
+  const { w, h } = exportSize();
+  const { format, jpegQuality } = params.export;
+  exportButton.disabled = true;
+  exportButton.title = "Exporting...";
+  // Let the button label update before the (synchronous) high-res render.
+  await new Promise((resolve) =>
+    requestAnimationFrame(() => setTimeout(resolve, 0)),
+  );
+  try {
+    const blob = await paper.exportImage(
+      w,
+      h,
+      `image/${format}`,
+      format === "jpeg" ? jpegQuality : undefined,
+    );
+    const anchor = document.createElement("a");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `heisenshadow-${activeModeId}-${w}x${h}.${format === "jpeg" ? "jpg" : "png"}`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
+    exportButton.title = EXPORT_TITLE;
+  } catch (err) {
+    // Usually the browser's canvas size limit.
+    console.error("Export failed", err);
+    exportButton.title = "Export failed (too large?)";
+    setTimeout(() => {
+      exportButton.title = EXPORT_TITLE;
+    }, 3000);
+  } finally {
+    exportButton.disabled = false;
+  }
+});
+
 // When any pane binding changes (slider, checkbox, etc.) keep the URL in sync,
 // and while the animation is paused, redraw once so the change is visible
 // immediately. Tweakpane fires this after the binding's own change handlers
 // (setCurveSize, applyPaperShape, ...), so their side effects are applied.
 for (const p of panes) {
-  p.on("change", () => {
+  p.on("change", (ev) => {
     syncUrl();
-    if (!params.isDrawing) {
+    if (!params.isDrawing && !exportBindings.has(ev.target)) {
       paper.draw(0.0);
     }
   });

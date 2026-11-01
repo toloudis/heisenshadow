@@ -26,6 +26,11 @@ type Params = {
     orientationVariationProbability: number;
     patternVariation: number;
   };
+  export: {
+    format: string; // "png" | "jpeg"
+    longEdge: number; // pixels along the longer side of the exported image
+    jpegQuality: number;
+  };
 };
 
 const params: Params = {
@@ -56,6 +61,11 @@ const params: Params = {
     verticalThickness: 0.0,
     orientationVariationProbability: 1 / 25,
     patternVariation: 0.0,
+  },
+  export: {
+    format: "png",
+    longEdge: 4096,
+    jpegQuality: 0.92,
   },
 };
 
@@ -97,6 +107,17 @@ function loadParamsFromObj(obj: Params) {
   }
   if (obj.grid && typeof obj.grid.patternVariation === "number") {
     params.grid.patternVariation = obj.grid.patternVariation as number;
+  }
+  if (obj.export) {
+    if (obj.export.format === "png" || obj.export.format === "jpeg") {
+      params.export.format = obj.export.format;
+    }
+    if (typeof obj.export.longEdge === "number") {
+      params.export.longEdge = obj.export.longEdge;
+    }
+    if (typeof obj.export.jpegQuality === "number") {
+      params.export.jpegQuality = obj.export.jpegQuality;
+    }
   }
 }
 

@@ -1,4 +1,17 @@
+import { newRandomSeed, setRandomSeed } from "./rand";
 import type { Renderer } from "./renderer";
+
+// Map the 0..1 drawing coordinates onto a w x h pixel context and set the
+// stroke defaults the renderers rely on.
+function setupContext(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.setTransform(w, 0, 0, h, 0, 0);
+  ctx.lineWidth = 0.001;
+  //ctx.filter = "blur(0.5px)";
+  ctx.shadowBlur = 0; // 0.01;
+  ctx.shadowColor = "rgb(0, 0, 0)";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
 
 export class Canvas {
   private canvas: HTMLCanvasElement;
@@ -11,6 +24,8 @@ export class Canvas {
   private renderer?: Renderer;
   private lastTime: DOMHighResTimeStamp;
   private isPainting: boolean;
+  // Random seed of the most recent frame, so export can redraw it exactly.
+  private frameSeed: number;
 
   constructor(canvas: HTMLCanvasElement, paperAspect: number) {
     this.canvas = canvas;
@@ -33,6 +48,7 @@ export class Canvas {
     this.lastTime = 0;
 
     this.isPainting = false;
+    this.frameSeed = newRandomSeed();
 
     // Fit the canvas to its container (the space between the pane columns).
     this.setCanvasSize();
@@ -78,14 +94,7 @@ export class Canvas {
     this.canvas.width = w;
     this.canvas.height = h;
     // set coordinate system to 0,0-1,1
-    this.ctx.setTransform(w, 0, 0, h, 0, 0);
-    //context.scale(canvas.width, canvas.height);
-    this.ctx.lineWidth = 0.001;
-    //this.ctx.filter = "blur(0.5px)";
-    this.ctx.shadowBlur = 0; // 0.01;
-    this.ctx.shadowColor = "rgb(0, 0, 0)";
-    this.ctx.lineCap = "round";
-    this.ctx.lineJoin = "round";
+    setupContext(this.ctx, w, h);
 
     if (this.renderer) {
       this.renderer.resize(w, h);
@@ -97,9 +106,53 @@ export class Canvas {
       this.clear();
     }
     this.frameNum = this.frameNum + 1;
-    if (this.renderer) {
-      this.renderer.render(this.ctx, dt);
+    this.renderFrame(dt);
+  }
+
+  private renderFrame(dt: number) {
+    if (!this.renderer) return;
+    this.frameSeed = newRandomSeed();
+    setRandomSeed(this.frameSeed);
+    this.renderer.render(this.ctx, dt);
+  }
+
+  /**
+   * Redraw the most recent frame into a new w x h canvas and encode it. The
+   * renderer isn't resized, so layout stays as on screen (e.g. the grid's cell
+   * count) and the same seed reproduces the same curves at higher resolution.
+   * Only the latest frame is redrawn, so with auto-clear off, the strokes
+   * accumulated from earlier frames are not included.
+   */
+  public exportImage(
+    w: number,
+    h: number,
+    type: string,
+    quality?: number,
+  ): Promise<Blob> {
+    const out = document.createElement("canvas");
+    out.width = w;
+    out.height = h;
+    const ctx = out.getContext("2d");
+    if (!ctx) {
+      return Promise.reject(new Error("Failed to get 2D context for export"));
     }
+    ctx.fillStyle = "rgba(255,255,255,1)";
+    ctx.fillRect(0, 0, w, h);
+    setupContext(ctx, w, h);
+    if (this.renderer) {
+      setRandomSeed(this.frameSeed);
+      this.renderer.render(ctx, 0);
+    }
+    return new Promise((resolve, reject) => {
+      out.toBlob(
+        (blob) =>
+          blob
+            ? resolve(blob)
+            : reject(new Error(`Failed to encode ${w}x${h} image`)),
+        type,
+        quality,
+      );
+    });
   }
 
   private animate(t: DOMHighResTimeStamp) {
@@ -110,9 +163,7 @@ export class Canvas {
     const dt = t - this.lastTime;
     this.lastTime = t;
 
-    if (this.renderer) {
-      this.renderer.render(this.ctx, dt);
-    }
+    this.renderFrame(dt);
 
     if (this.isDrawing) {
       this.animationId = window.requestAnimationFrame((t0) => this.animate(t0));
@@ -175,5 +226,6 @@ export class Canvas {
   }
   pointerUp(_e: PointerEvent) {
     this.isPainting = false;
+    this.frameSeed = newRandomSeed();
   }
 }
