@@ -1,5 +1,4 @@
 type Params = {
-  mode: number;
   speed: number;
   dilation: number;
   border: number;
@@ -35,7 +34,6 @@ type Params = {
 };
 
 const params: Params = {
-  mode: 0,
   speed: 5,
   dilation: 0.0,
   border: 0.04,
@@ -133,9 +131,9 @@ function loadParamsFromObj(obj: Params) {
 type ParamLeaf = number | boolean | string;
 type ParamTree = { [key: string]: ParamLeaf | ParamTree };
 
-// Runtime state rather than part of the view. The active mode is stored in the
-// URL by its mode id instead (see main.ts), since `mode` alone is ambiguous.
-const URL_EXCLUDED_KEYS = new Set(["mode", "isDrawing"]);
+// Runtime state rather than part of the view. (The active renderer mode isn't
+// a param; main.ts stores it in the URL by its mode id.)
+const URL_EXCLUDED_KEYS = new Set(["isDrawing"]);
 
 function forEachLeaf(
   obj: ParamTree,

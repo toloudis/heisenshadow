@@ -7,11 +7,21 @@ import { drawClusterParams } from "./strokes";
 import type { VNCell } from "./voronoi";
 import { createVoronoiFromRandomPoints, type VoronoiDiagram } from "./voronoi";
 
+/**
+ * How strokes in each voronoi cell are angled. "radial": along a spiral around
+ * params.radialVoronoi.center, turning further as frames pass. "plain": all at
+ * the angle set by params.verticality.
+ */
+export type VoronoiMode = "radial" | "plain";
+
 export class VoronoiRadialRenderer implements Renderer {
   private framet: number;
   private voronoi: VoronoiDiagram;
 
-  constructor(paper: Canvas) {
+  constructor(
+    paper: Canvas,
+    private readonly mode: VoronoiMode,
+  ) {
     this.framet = 0;
     // trivial voronoi diagram for typescript
     this.voronoi = createVoronoiFromRandomPoints(1.0, 1.0, 1);
@@ -79,7 +89,7 @@ export class VoronoiRadialRenderer implements Renderer {
       //ctx.stroke();
       ctx.clip();
 
-      if (params.mode === 0) {
+      if (this.mode === "radial") {
         // look at centroid;
         // check radius from center of screen.
         const relativeCentroidX =

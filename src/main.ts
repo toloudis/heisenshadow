@@ -151,8 +151,6 @@ setImageThicknessMapChangedCallback(() => {
     paper.draw(0.0);
   }
 });
-const voronoiRenderer = new VoronoiRadialRenderer(paper);
-const gridRenderer = new GridRenderer();
 
 //loadStrokeAssets(paper.ctx);
 
@@ -170,30 +168,26 @@ for (const p of panes) {
 }
 
 // ---- Renderer modes: single source of truth -------------------------------
-// Each entry describes a renderer button: its label, the legacy params.mode
-// value (used internally by renderers that branch on it), and how to obtain
-// the Renderer instance to activate. `settings`, if provided, populates a
-// mode-specific folder in the UI that is only visible while that mode is
-// active.
+// Each entry describes a renderer button: its label and how to create its
+// Renderer. Every click creates a fresh instance, so modes never share state.
+// `settings`, if provided, populates a mode-specific folder in the UI that is
+// only visible while that mode is active.
 type ModeDef = {
   id: string;
   title: string;
-  modeValue: number;
-  activate: () => Renderer;
+  create: () => Renderer;
   settings?: (folder: FolderApi) => void;
 };
 const MODES: ModeDef[] = [
   {
     id: "voronoi",
     title: "Voronoi",
-    modeValue: 1,
-    activate: () => voronoiRenderer,
+    create: () => new VoronoiRadialRenderer(paper, "plain"),
   },
   {
     id: "voronoi-radial",
     title: "Voronoi Radial",
-    modeValue: 0,
-    activate: () => voronoiRenderer,
+    create: () => new VoronoiRadialRenderer(paper, "radial"),
     settings: (folder) => {
       tip(
         folder.addBinding(params.radialVoronoi, "center", {
@@ -207,14 +201,12 @@ const MODES: ModeDef[] = [
   {
     id: "retained",
     title: "Retained",
-    modeValue: 0,
-    activate: () => new VoronoiRadialRendererRetained(paper),
+    create: () => new VoronoiRadialRendererRetained(paper),
   },
   {
     id: "grid",
     title: "Grid",
-    modeValue: 2,
-    activate: () => gridRenderer,
+    create: () => new GridRenderer(),
     settings: (folder) => {
       tip(
         folder.addBinding(params.grid, "cellsAcross", {
@@ -304,8 +296,7 @@ function syncUrl() {
 }
 
 function selectMode(mode: ModeDef, btnEl: HTMLElement) {
-  paper.setRenderer(mode.activate());
-  params.mode = mode.modeValue;
+  paper.setRenderer(mode.create());
   setActiveRendererBtn(btnEl);
   setActiveSettingsFolder(mode.id);
   activeModeId = mode.id;
@@ -323,7 +314,7 @@ for (const mode of MODES) {
 }
 
 // Apply the initial mode from the URL, falling back to the default (drives
-// initial renderer, params.mode, and highlight).
+// initial renderer and highlight).
 const initialMode =
   MODES.find((m) => m.id === initialSearch.get("mode")) ??
   MODES.find((m) => m.id === DEFAULT_MODE_ID);
