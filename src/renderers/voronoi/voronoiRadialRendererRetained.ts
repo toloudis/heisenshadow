@@ -1,7 +1,7 @@
 import type { Canvas } from "../../canvas";
 import { getImageThicknessMultiplier } from "../../imageThicknessMap";
 import { params } from "../../params";
-import { rand } from "../../rand";
+import { getRandomSeed, newRandomSeed, rand, setRandomSeed } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
 import { Cluster, Stroke } from "../../strokes";
 import {
@@ -20,6 +20,11 @@ export class VoronoiRadialRendererRetained implements Renderer {
   private voronoi: VoronoiDiagram;
   private clusters: CellCluster[];
   private inCell: number = -1;
+  // Clusters are rebuilt from this seed every time, so a rebuild after a
+  // settings change (or an animated one, every frame) keeps the same random
+  // choices instead of re-rolling the picture.
+  private readonly buildSeed = newRandomSeed();
+  private builtKey = "";
 
   constructor(paper: Canvas) {
     this.clusters = [];
@@ -35,6 +40,9 @@ export class VoronoiRadialRendererRetained implements Renderer {
   }
 
   render(ctx: CanvasRenderingContext2D, dt: number) {
+    // Rebuild before advancing the clock, so rebuilt clusters start at the
+    // spin accumulated so far and this frame's spin is added once, in draw.
+    if (this.bakedKey() !== this.builtKey) this.build();
     const delta = 0.0001 * (params.speed + 1.0);
     this.framet = this.framet + delta * dt;
     this.draw(ctx, delta * dt, this.voronoi);
@@ -43,9 +51,35 @@ export class VoronoiRadialRendererRetained implements Renderer {
   resize(_w: number, _h: number) {
     const nVoronoiCells = 1024; // TODO parameter!
     this.voronoi = createVoronoiFromRandomPoints(1.0, 1.0, nVoronoiCells);
-    // Strokes are built here, from the stroke settings current at this time.
+    this.build();
+  }
+
+  // The settings built into each cluster when it's created. Dilation and
+  // border are applied while drawing, so they aren't included.
+  private bakedKey(): string {
+    const v = voronoiParams;
+    return [
+      v.multiplicity,
+      v.thickness,
+      v.thicknessVariation,
+      v.angleVariation,
+      v.linelength,
+      v.linelengthVariation,
+      v.uniformity,
+      v.center.x,
+      v.center.y,
+    ].join();
+  }
+
+  // (Re)build every cell's cluster from the current settings and buildSeed,
+  // leaving the frame's random sequence where it was.
+  private build() {
+    this.builtKey = this.bakedKey();
     applyVoronoiStrokeSettings();
+    const frameSeed = getRandomSeed();
+    setRandomSeed(this.buildSeed);
     this.predraw(45.0); // TODO parameter!
+    setRandomSeed(frameSeed);
   }
 
   predraw(spiralness: number) {
@@ -63,8 +97,10 @@ export class VoronoiRadialRendererRetained implements Renderer {
           relativeCentroidY * relativeCentroidY,
       );
       //const spiralness = 1.0 / 0.2;
+      // framet adds the spin accumulated so far (draw turns each cluster by
+      // r * t per frame), so a rebuild doesn't snap clusters back.
       const ang =
-        ((theta + r * spiralness) / Math.PI) * 180.0 +
+        ((theta + r * spiralness + r * this.framet) / Math.PI) * 180.0 +
         rand(-voronoiParams.angleVariation, voronoiParams.angleVariation);
 
       const thickness =

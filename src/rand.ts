@@ -10,6 +10,11 @@ export function setRandomSeed(seed: number) {
   state = seed >>> 0;
 }
 
+/** The generator's current state; pass it to setRandomSeed to resume from here. */
+export function getRandomSeed(): number {
+  return state;
+}
+
 function next(): number {
   state = (state + 0x6d2b79f5) >>> 0;
   let t = state;
