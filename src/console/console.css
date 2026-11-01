@@ -1,0 +1,238 @@
+/* Control console: rows and columns of large, DJ-style controls.
+ *
+ * Controls have fixed sizes so they line up however they're arranged; set
+ * these variables on .cc-console (or any container) to resize them:
+ *   --cc-button-size    buttons are square
+ *   --cc-slider-width   vertical sliders (length fills the container)
+ *   --cc-slider-height  horizontal sliders (length fills the container)
+ */
+.cc-console {
+  --cc-bg: #28292e;
+  --cc-panel: #37383d;
+  --cc-fg: #bbbcc4;
+  --cc-dim: #7c7d85;
+  --cc-accent: #e0a800;
+  --cc-control: #4a4b52;
+  --cc-control-hover: #55565e;
+  --cc-button-size: 48px;
+  --cc-slider-width: 52px;
+  --cc-slider-height: 36px;
+  --cc-gap: 6px;
+
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  background-color: var(--cc-bg);
+  color: var(--cc-fg);
+  font-family: "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace;
+  font-size: 11px;
+  user-select: none;
+}
+
+/* ---- layout ---- */
+.cc-row,
+.cc-column {
+  display: flex;
+  gap: var(--cc-gap);
+  min-width: 0;
+  min-height: 0;
+}
+.cc-row {
+  flex-direction: row;
+}
+.cc-column {
+  flex-direction: column;
+}
+
+/* Children keep their natural size along the container's axis and stretch
+ * across it. Only sliders (and containers made with grow) fill the length;
+ * see "slider length" below. */
+.cc-console > *,
+.cc-row > *,
+.cc-column > * {
+  flex: none;
+}
+
+.cc-panel {
+  padding: 6px;
+  border-radius: 4px;
+  background-color: var(--cc-panel);
+}
+
+/* A column of controls that share a channel, e.g. a slider over its button. */
+.cc-strip {
+  align-items: center;
+}
+
+.cc-grid {
+  display: grid;
+  grid-auto-rows: var(--cc-button-size);
+  align-content: center;
+  gap: var(--cc-gap);
+}
+
+.cc-label {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-key-hint {
+  color: var(--cc-dim);
+  text-align: center;
+  font-size: 10px;
+}
+
+/* ---- slider ---- */
+.cc-slider {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.cc-slider-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-slider-track {
+  position: relative;
+  flex: 1;
+  min-height: 40px;
+  width: 14px;
+  border-radius: 7px;
+  background-color: var(--cc-control);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.cc-slider-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--cc-t, 0) * 100%);
+  border-radius: 7px;
+  background-color: var(--cc-dim);
+}
+
+.cc-slider-thumb {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--cc-t, 0) * 100%);
+  width: 32px;
+  height: 10px;
+  transform: translate(-50%, 50%);
+  border-radius: 3px;
+  background-color: var(--cc-fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.cc-slider.cc-vertical {
+  width: var(--cc-slider-width);
+}
+/* Horizontal: label | track | value | keys, increasing to the right. */
+.cc-slider.cc-horizontal {
+  flex-direction: row;
+  height: var(--cc-slider-height);
+  min-width: 120px;
+}
+.cc-horizontal .cc-slider-track {
+  width: auto;
+  height: 14px;
+  margin: 0 5px; /* room for the thumb's overhang at either end */
+  min-width: 40px;
+  min-height: 0;
+  cursor: ew-resize;
+}
+.cc-horizontal .cc-slider-fill {
+  top: 0;
+  right: auto;
+  width: calc(var(--cc-t, 0) * 100%);
+  height: auto;
+}
+.cc-horizontal .cc-slider-thumb {
+  left: calc(var(--cc-t, 0) * 100%);
+  top: 50%;
+  bottom: auto;
+  width: 10px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+}
+.cc-horizontal .cc-slider-track {
+  order: 1;
+}
+.cc-horizontal .cc-slider-value {
+  order: 2;
+  min-width: 3em;
+  text-align: right;
+}
+.cc-horizontal .cc-key-hint {
+  order: 3;
+}
+
+/* Slider length: fill the container along the slider's own axis. */
+.cc-console > .cc-slider.cc-horizontal,
+.cc-row > .cc-slider.cc-horizontal,
+.cc-column > .cc-slider.cc-vertical,
+.cc-grow {
+  flex: 1 1 0;
+}
+
+.cc-slider.cc-active .cc-slider-fill,
+.cc-slider.cc-active .cc-slider-thumb {
+  background-color: var(--cc-accent);
+}
+
+/* ---- button ---- */
+.cc-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: var(--cc-button-size);
+  height: var(--cc-button-size);
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--cc-control);
+  color: var(--cc-fg);
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+}
+.cc-button:hover {
+  background-color: var(--cc-control-hover);
+}
+.cc-button.cc-on {
+  background-color: var(--cc-accent);
+  color: #000;
+}
+.cc-button.cc-on .cc-key-hint {
+  color: #333;
+}
+.cc-button.cc-pressed {
+  transform: translateY(1px);
+  filter: brightness(1.25);
+}
+
+/* ---- slider with button: one channel; when gated the button connects it ---- */
+.cc-slider-button {
+  align-items: center;
+}
+.cc-slider-button.cc-row {
+  min-width: 240px;
+}
+/* Gated off: the slider still moves but reads as disconnected. */
+.cc-gated.cc-off .cc-slider-fill,
+.cc-gated.cc-off .cc-slider-thumb,
+.cc-gated.cc-off .cc-slider-value {
+  opacity: 0.4;
+}

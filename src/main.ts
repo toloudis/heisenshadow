@@ -12,6 +12,7 @@ import {
 
 import "./style.css";
 import { Canvas } from "./canvas";
+import { ControlConsole } from "./console";
 import { GridRenderer } from "./gridRenderer";
 import { setImageThicknessMapChangedCallback } from "./imageThicknessMap";
 import {
@@ -676,4 +677,41 @@ for (const p of panes) {
       paper.draw(0.0);
     }
   });
+}
+
+// ---- Control console ----------------------------------------------------------
+// Bottom panel of hold-to-move sliders and buttons. Not wired to params yet; to
+// hook one up, bind it like a Tweakpane binding, e.g.
+//   strip.addSlider(params, "speed", { min: 0, max: 10, upKey: "q", downKey: "a" })
+// or listen with slider.on("change", ...) / button.on("change", ...).
+const controlConsole = new ControlConsole({
+  container: paneContainer("#console-panel"),
+});
+const STRIP_KEYS = [
+  { up: "q", down: "a", button: "z" },
+  { up: "w", down: "s", button: "x" },
+  { up: "e", down: "d", button: "c" },
+  { up: "r", down: "f", button: "v" },
+];
+STRIP_KEYS.forEach((keys, i) => {
+  controlConsole.addSliderWithButton({
+    label: `S${i + 1}`,
+    upKey: keys.up,
+    downKey: keys.down,
+    value: 0.5,
+    buttonLabel: `B${i + 1}`,
+    buttonKey: keys.button,
+  });
+});
+controlConsole.addSliderWithButton({
+  label: "S5",
+  upKey: "t",
+  downKey: "g",
+  value: 0.5,
+  gated: true,
+  buttonKey: "b",
+});
+const consoleGrid = controlConsole.addGrid({ columns: 2 });
+for (let i = 0; i < 4; i++) {
+  consoleGrid.addButton({ label: `G${i + 1}`, mode: "continuous" });
 }
