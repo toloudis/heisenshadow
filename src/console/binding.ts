@@ -35,10 +35,41 @@ export function bindNumber(target: object, key: string): Accessor<number> {
         ? JSON.stringify(value)
         : String(value);
     throw new TypeError(
-      `Console sliders and dials bind a single number, but "${key}" is ${found}.`,
+      `Console sliders and dials bind a single number, but "${key}" is ${found}. (Use a trackpad for {x, y} points.)`,
     );
   }
   return bindProperty<number>(target, key);
+}
+
+/**
+ * Bind to a property that must hold an `{x, y}` point of numbers, as
+ * trackpads need. Writes update the existing point object in place, so
+ * anything else holding a reference to it sees the new values.
+ */
+export function bindPoint(
+  target: object,
+  key: string,
+): Accessor<{ x: number; y: number }> {
+  const value = (target as Record<string, unknown>)[key];
+  const p = value as { x?: unknown; y?: unknown } | null;
+  if (
+    p === null ||
+    typeof p !== "object" ||
+    typeof p.x !== "number" ||
+    typeof p.y !== "number"
+  ) {
+    throw new TypeError(
+      `Console trackpads bind an {x, y} point, but "${key}" is ${JSON.stringify(value) ?? String(value)}.`,
+    );
+  }
+  const obj = target as Record<string, { x: number; y: number }>;
+  return {
+    get: () => obj[key],
+    set: (v) => {
+      obj[key].x = v.x;
+      obj[key].y = v.y;
+    },
+  };
 }
 
 export function localValue<V>(initial: V): Accessor<V> {

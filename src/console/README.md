@@ -1,6 +1,6 @@
 # console
 
-A control panel of large, hardware-style controls (vertical and horizontal sliders, dials and square buttons), designed to be played from the keyboard like a DJ console. You build it in code like a Tweakpane pane, and each control can be bound to a property of a parameter object.
+A control panel of large, hardware-style controls (vertical and horizontal sliders, dials, square buttons and trackpads), designed to be played from the keyboard like a DJ console. You build it in code like a Tweakpane pane, and each control can be bound to a property of a parameter object.
 
 Import everything from the folder's entry point, [index.ts](index.ts). The other modules are internal.
 
@@ -56,7 +56,7 @@ for (const label of ["A", "B", "C", "D"]) grid.addButton({ label });
 
 Every `add*` control method has two forms:
 
-- **Bound:** `addSlider(target, key, options)` reads and writes `target[key]` directly, like Tweakpane's `addBinding`. TypeScript only accepts keys whose values have the right type: numbers for sliders and dials, booleans for buttons. Sliders and dials also check at runtime and throw a `TypeError` if the property doesn't hold a single number (for example an `{x, y}` point), which catches targets that got past the types through a cast.
+- **Bound:** `addSlider(target, key, options)` reads and writes `target[key]` directly, like Tweakpane's `addBinding`. TypeScript only accepts keys whose values have the right type: numbers for sliders and dials, booleans for buttons, `{x, y}` points for trackpads. Sliders and dials also check at runtime and throw a `TypeError` if the property doesn't hold a single number (for example an `{x, y}` point), and trackpads throw if it doesn't hold a point, which catches targets that got past the types through a cast.
 - **Unbound:** `addSlider(options)`. The control keeps its own value. Read it with `.value`, or listen with `.on("change", …)`.
 
 If the target changes somewhere else (for example after loading settings), call `refresh()` on the console, a container, or a single control so the controls show the new values.
@@ -116,7 +116,7 @@ These rules apply to every event:
 - **Setting a value from code fires the same events as user input.** For example, `slider.value = 3` fires `change`. To update a control without triggering events, change the target object and call `refresh()`.
 - **Containers have no events.** Only the controls listed below do.
 
-Each control's events are defined in its API section below. The event maps are also exported as types (`SliderEvents`, `DialEvents`, `ButtonEvents`, `SliderWithButtonEvents`) and documented in the source, so editors show the definitions on hover.
+Each control's events are defined in its API section below. The event maps are also exported as types (`SliderEvents`, `DialEvents`, `ButtonEvents`, `SliderWithButtonEvents`, `TrackpadEvents`) and documented in the source, so editors show the definitions on hover.
 
 ## API reference
 
@@ -245,17 +245,49 @@ Turning a gate on is a single toggle click, so it fires `press` when pressed, th
 
 When not gated, the button's state is reached through `button.value` and `button.on("change", …)`.
 
+### `addTrackpad([target, key,] options)` → `TrackpadApi`
+
+A square pad for setting a 2D point, as big as a 2×2 button grid by default (`--cc-trackpad-size`). Press anywhere on it to jump the point there, then drag to move it. Crosshairs and a dot mark the point, the label sits in the top-left corner, and the current `x, y` is shown along the bottom. The dot and crosshairs turn the accent color while dragging. Trackpads have no hotkeys.
+
+When bound, the target property must hold an `{x, y}` object of numbers. The trackpad updates that object's `x` and `y` in place rather than replacing it.
+
+```ts
+const params = { center: { x: 0, y: 0 } };
+panel.addTrackpad(params, "center", { label: "center" });
+```
+
+| Option    | Default               | Description                                                                                                              |
+| --------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `label`   | none                  | Short text shown in the pad's top-left corner.                                                                           |
+| `x`, `y`  | `{ min: -1, max: 1 }` | The range of each axis, as `{ min, max }`.                                                                               |
+| `invertY` | `false`               | By default y increases downward, like canvas coordinates and Tweakpane's point control. `true` makes it increase upward. |
+| `format`  | 2 decimals            | `(value) => string` for each axis in the readout.                                                                        |
+| `value`   | center of the ranges  | Starting point. Only used when the trackpad is unbound.                                                                  |
+
+**`TrackpadApi` members**
+
+- `value`: a copy of the current point. Setting it clamps the point to the ranges, writes the target, and fires `change`.
+- `on(event, handler)`: subscribes to an event and returns an unsubscribe function.
+- `refresh()`: re-reads the target. `dispose()`: removes the trackpad. `element`: the trackpad's DOM element.
+
+**`TrackpadApi` events**
+
+| Event    | Payload                           | Fires when                                                                                                         | Does not fire                                    |
+| -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `change` | `{x, y}`, a copy of the new point | The point changes: while dragging, or when `value` is set. The point is already clamped and written to the target. | From `refresh()`; when the point doesn't change. |
+
 ## Styling
 
 [console.css](console.css) is imported by the module itself. Sizes are CSS variables on `.cc-console`. Override them there, or on any container to resize only that part:
 
-| Variable             | Default | Controls                                   |
-| -------------------- | ------- | ------------------------------------------ |
-| `--cc-button-size`   | 48px    | Width and height of every button.          |
-| `--cc-slider-width`  | 52px    | Width of vertical sliders.                 |
-| `--cc-slider-height` | 36px    | Height of horizontal sliders.              |
-| `--cc-dial-size`     | 56px    | Width and height of a dial's knob.         |
-| `--cc-gap`           | 6px     | Space between controls inside a container. |
+| Variable             | Default         | Controls                                   |
+| -------------------- | --------------- | ------------------------------------------ |
+| `--cc-button-size`   | 48px            | Width and height of every button.          |
+| `--cc-slider-width`  | 52px            | Width of vertical sliders.                 |
+| `--cc-slider-height` | 36px            | Height of horizontal sliders.              |
+| `--cc-dial-size`     | 56px            | Width and height of a dial's knob.         |
+| `--cc-trackpad-size` | 2 buttons + gap | Width and height of a trackpad.            |
+| `--cc-gap`           | 6px             | Space between controls inside a container. |
 
 The colors (`--cc-bg`, `--cc-panel`, `--cc-fg`, `--cc-dim`, `--cc-accent`, `--cc-control`, `--cc-control-hover`) are defined in the same place. All class names start with `cc-`.
 
@@ -263,14 +295,14 @@ Labels on every control are cut off with "…" when they don't fit, and hovering
 
 ## Source layout
 
-| File                                                                                                           | Contents                                                                                |
-| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [index.ts](index.ts)                                                                                           | The public exports.                                                                     |
-| [controlConsole.ts](controlConsole.ts)                                                                         | `ControlConsole` and the containers (`ConsoleContainer`).                               |
-| [slider.ts](slider.ts), [dial.ts](dial.ts), [button.ts](button.ts), [sliderWithButton.ts](sliderWithButton.ts) | The controls.                                                                           |
-| [rangeControl.ts](rangeControl.ts)                                                                             | The base class for sliders and dials: value handling, held keys and the `change` event. |
-| [keyboard.ts](keyboard.ts)                                                                                     | Hotkey handling (internal).                                                             |
-| [binding.ts](binding.ts), [emitter.ts](emitter.ts)                                                             | Value binding and events (internal).                                                    |
-| [console.css](console.css)                                                                                     | Styles and size variables.                                                              |
+| File                                                                                                                                       | Contents                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| [index.ts](index.ts)                                                                                                                       | The public exports.                                                                     |
+| [controlConsole.ts](controlConsole.ts)                                                                                                     | `ControlConsole` and the containers (`ConsoleContainer`).                               |
+| [slider.ts](slider.ts), [dial.ts](dial.ts), [button.ts](button.ts), [sliderWithButton.ts](sliderWithButton.ts), [trackpad.ts](trackpad.ts) | The controls.                                                                           |
+| [rangeControl.ts](rangeControl.ts)                                                                                                         | The base class for sliders and dials: value handling, held keys and the `change` event. |
+| [keyboard.ts](keyboard.ts)                                                                                                                 | Hotkey handling (internal).                                                             |
+| [binding.ts](binding.ts), [emitter.ts](emitter.ts)                                                                                         | Value binding and events (internal).                                                    |
+| [console.css](console.css)                                                                                                                 | Styles and size variables.                                                              |
 
 The module has no runtime dependencies. It imports its own CSS, so it currently relies on a bundler that handles CSS imports, such as Vite. If it becomes a package, its own `package.json` and a TypeDoc build that reads the TSDoc comments in the source would be a natural fit.

@@ -12,8 +12,8 @@ export type RendererSetting = {
   tooltip?: string;
   /**
    * Numeric range and step. For `{x, y}` point values the range applies to
-   * both axes. Point settings can only be shown in the pane: console sliders
-   * and dials accept single numbers and throw for anything else.
+   * both axes. Console sliders and dials accept single numbers and throw for
+   * anything else; bind points to a console trackpad instead.
    */
   min?: number;
   max?: number;

@@ -25,3 +25,10 @@ export {
   type SliderWithButtonEvents,
   type SliderWithButtonOptions,
 } from "./sliderWithButton";
+export {
+  type AxisRange,
+  type Point,
+  TrackpadApi,
+  type TrackpadEvents,
+  type TrackpadOptions,
+} from "./trackpad";

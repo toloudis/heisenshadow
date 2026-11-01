@@ -2,6 +2,7 @@ import "./console.css";
 import {
   type Accessor,
   bindNumber,
+  bindPoint,
   bindProperty,
   type KeysOfType,
   localValue,
@@ -15,6 +16,7 @@ import {
   SliderWithButtonApi,
   type SliderWithButtonOptions,
 } from "./sliderWithButton";
+import { type Point, TrackpadApi, type TrackpadOptions } from "./trackpad";
 
 type Control = { element: HTMLElement; refresh(): void; dispose(): void };
 
@@ -148,6 +150,38 @@ export class ConsoleContainer {
       accessor = localValue(options.value ?? options.min ?? 0);
     }
     return this.add(new SliderWithButtonApi(accessor, this.keyboard, options));
+  }
+
+  /**
+   * Add a square trackpad (as big as a 2×2 button grid) that sets a 2D point,
+   * optionally bound to an `{x, y}` property of `target`.
+   */
+  addTrackpad(options?: TrackpadOptions): TrackpadApi;
+  addTrackpad<T extends object>(
+    target: T,
+    key: KeysOfType<T, Point>,
+    options?: TrackpadOptions,
+  ): TrackpadApi;
+  addTrackpad(
+    a?: object | TrackpadOptions,
+    b?: string,
+    c?: TrackpadOptions,
+  ): TrackpadApi {
+    let accessor: Accessor<Point>;
+    let options: TrackpadOptions;
+    if (typeof b === "string") {
+      accessor = bindPoint(a as object, b);
+      options = c ?? {};
+    } else {
+      options = (a as TrackpadOptions | undefined) ?? {};
+      accessor = localValue(
+        options.value ?? {
+          x: ((options.x?.min ?? -1) + (options.x?.max ?? 1)) / 2,
+          y: ((options.y?.min ?? -1) + (options.y?.max ?? 1)) / 2,
+        },
+      );
+    }
+    return this.add(new TrackpadApi(accessor, options));
   }
 
   /** Add a container that lays out its children left to right. */

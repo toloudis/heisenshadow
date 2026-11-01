@@ -6,6 +6,7 @@
  *   --cc-slider-width   vertical sliders (length fills the container)
  *   --cc-slider-height  horizontal sliders (length fills the container)
  *   --cc-dial-size      dials' knobs are square
+ *   --cc-trackpad-size  trackpads are square; default fits a 2×2 button grid
  */
 .cc-console {
   --cc-bg: #28292e;
@@ -325,4 +326,83 @@
 .cc-gated.cc-off .cc-slider-thumb,
 .cc-gated.cc-off .cc-slider-value {
   opacity: 0.4;
+}
+
+/* ---- trackpad: press and drag to set a 2D point ---- */
+.cc-trackpad {
+  position: relative;
+  /* Default: as big as a 2×2 button grid. */
+  width: var(
+    --cc-trackpad-size,
+    calc(2 * var(--cc-button-size) + var(--cc-gap))
+  );
+  height: var(
+    --cc-trackpad-size,
+    calc(2 * var(--cc-button-size) + var(--cc-gap))
+  );
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--cc-control);
+  cursor: crosshair;
+  touch-action: none;
+}
+.cc-trackpad:hover {
+  background-color: var(--cc-control-hover);
+}
+.cc-trackpad-hline,
+.cc-trackpad-vline {
+  position: absolute;
+  background-color: var(--cc-dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.cc-trackpad-hline {
+  left: 0;
+  right: 0;
+  top: calc(var(--cc-ty, 0.5) * 100%);
+  height: 1px;
+}
+.cc-trackpad-vline {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--cc-tx, 0.5) * 100%);
+  width: 1px;
+}
+.cc-trackpad-dot {
+  position: absolute;
+  left: calc(var(--cc-tx, 0.5) * 100%);
+  top: calc(var(--cc-ty, 0.5) * 100%);
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background-color: var(--cc-fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.cc-trackpad.cc-active .cc-trackpad-dot {
+  background-color: var(--cc-accent);
+}
+.cc-trackpad.cc-active .cc-trackpad-hline,
+.cc-trackpad.cc-active .cc-trackpad-vline {
+  background-color: var(--cc-accent);
+}
+.cc-trackpad > .cc-label {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  font-size: 9px;
+  text-align: left;
+}
+.cc-trackpad-value {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  color: var(--cc-dim);
+  font-size: 9px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }

@@ -679,3 +679,14 @@ for (let i = 0; i < 4; i++) {
 const dialRow = gridColumn.addRow({ panel: true });
 dialRow.addDial({ label: "D1", upKey: "i", downKey: "k" });
 dialRow.addDial({ label: "D2", upKey: "o", downKey: "l" });
+// Far right: a trackpad for the radial voronoi modes' spiral center. Same range
+// and y direction as the pane's center control. Refreshing the settings panel
+// fires the pane change handler (URL sync, redraw while paused) when center is
+// shown there; other modes don't use center, so only the URL needs updating.
+controlConsole
+  .addColumn({ panel: true })
+  .addTrackpad(voronoiParams, "center", { label: "center" })
+  .on("change", () => {
+    rendererSettingsFolder?.refresh();
+    syncUrl();
+  });
