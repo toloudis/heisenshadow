@@ -293,6 +293,16 @@ leftPane
     }
   });
 
+// Start or stop the animation to match params.isDrawing. Shared by the pane's
+// Pause/Play button and the console's play button.
+function applyIsDrawing() {
+  if (params.isDrawing) {
+    paper.start();
+  } else {
+    paper.stop();
+  }
+}
+
 const fAnimation = leftPane.addFolder({ title: "Animation" });
 fAnimation
   .addButton({
@@ -300,11 +310,9 @@ fAnimation
   })
   .on("click", () => {
     params.isDrawing = !params.isDrawing;
-    if (params.isDrawing) {
-      paper.start();
-    } else {
-      paper.stop();
-    }
+    applyIsDrawing();
+    // Light or unlight the console's play button.
+    controlConsole.refresh();
   });
 fAnimation
   .addButton({
@@ -313,7 +321,11 @@ fAnimation
   .on("click", () => {
     paper.draw(1.0);
   });
-fAnimation.addBinding(params, "speed", { min: 0.0, max: 10.0, step: 0.1 });
+const speedBinding = fAnimation.addBinding(params, "speed", {
+  min: 0.0,
+  max: 10.0,
+  step: 0.1,
+});
 fAnimation.addBinding(params, "clearInBetween").on("change", () => {
   paper.setAutoClear(params.clearInBetween);
 });
@@ -567,10 +579,11 @@ leftPane.addButton({ title: "Copy Link" }).on("click", () => {
 // ---- Export -----------------------------------------------------------------
 const fExport = leftPane.addFolder({ title: "Export" });
 
-// Export settings don't affect the drawing. The pane change handler skips its
-// redraw for them, since a redraw re-randomizes the picture about to be
-// exported.
-const exportBindings = new Set<unknown>();
+// Bindings whose changes the pane change handler doesn't redraw for while
+// paused. Export settings don't affect the drawing, and a redraw would
+// re-randomize the picture about to be exported. Speed only matters during
+// playback, so while paused changing it just stores the value.
+const noRedrawBindings = new Set<unknown>([speedBinding]);
 
 function exportSize(): { w: number; h: number } {
   const longEdge = Math.round(params.export.longEdge);
@@ -580,7 +593,7 @@ function exportSize(): { w: number; h: number } {
     : { w: Math.round(longEdge * aspect), h: longEdge };
 }
 
-exportBindings.add(
+noRedrawBindings.add(
   tip(
     fExport
       .addBinding(params.export, "format", {
@@ -590,7 +603,7 @@ exportBindings.add(
     "Image file format for export.",
   ),
 );
-exportBindings.add(
+noRedrawBindings.add(
   tip(
     fExport.addBinding(params.export, "longEdge", {
       min: 256,
@@ -610,7 +623,7 @@ const jpegQualityBinding = tip(
   }),
   "JPEG compression quality. 1 = best quality, largest file.",
 );
-exportBindings.add(jpegQualityBinding);
+noRedrawBindings.add(jpegQualityBinding);
 function updateJpegQualityVisibility() {
   jpegQualityBinding.hidden = params.export.format !== "jpeg";
 }
@@ -677,17 +690,25 @@ exportButton.on("click", async () => {
 // (setCurveSize, applyPaperShape, ...), so their side effects are applied.
 for (const p of panes) {
   p.on("change", (ev) => {
+    // Refreshing the read-only size line below fires this event too (always:
+    // a monitor's value is a fresh buffer each time), so ignore it to avoid
+    // infinite recursion.
+    if (ev.target === exportSizeBinding) return;
     syncUrl();
     exportSizeBinding.refresh();
-    if (!params.isDrawing && !exportBindings.has(ev.target)) {
+    // Keep console controls bound to the same params in step. (The console's
+    // refresh fires no events, so this can't loop back here.)
+    controlConsole.refresh();
+    if (!params.isDrawing && !noRedrawBindings.has(ev.target)) {
       paper.draw(0.0);
     }
   });
 }
 
 // ---- Control console ----------------------------------------------------------
-// Bottom panel of hold-to-move sliders and buttons. Not wired to params yet; to
-// hook one up, bind it like a Tweakpane binding, e.g.
+// Bottom panel of hold-to-move sliders, dials and buttons. The transport row
+// (play, step, speed) drives the animation; the channels, grid and dials aren't
+// wired to params yet. To hook one up, bind it like a Tweakpane binding, e.g.
 //   strip.addSlider(params, "speed", { min: 0, max: 10, upKey: "q", downKey: "a" })
 // or listen with slider.on("change", ...) / button.on("change", ...).
 const controlConsole = new ControlConsole({
@@ -698,16 +719,24 @@ const mainColumn = controlConsole.addColumn();
 const transport = mainColumn.addRow({ panel: true });
 // Slightly smaller buttons keep the strips' sliders tall enough.
 transport.element.style.setProperty("--cc-button-size", "40px");
-transport.addButton({ label: "play" }); // toggle: lit while playing
-transport.addButton({ label: "step", mode: "continuous" });
-transport.addSlider({
-  label: "speed",
-  orientation: "horizontal",
-  min: 0,
-  max: 10,
-  step: 0.1,
-  value: 5,
-});
+// Play toggles params.isDrawing (lit while playing).
+transport
+  .addButton(params, "isDrawing", { label: "play" })
+  .on("change", applyIsDrawing);
+transport
+  .addButton({ label: "step", mode: "continuous" })
+  .on("press", () => paper.draw(1.0));
+// Same range as the pane's speed slider. Refreshing that binding fires the
+// pane change handler, which also syncs the URL.
+transport
+  .addSlider(params, "speed", {
+    label: "speed",
+    orientation: "horizontal",
+    min: 0,
+    max: 10,
+    step: 0.1,
+  })
+  .on("change", () => speedBinding.refresh());
 const channels = mainColumn.addRow({ grow: true });
 const STRIP_KEYS = [
   { up: "q", down: "a", button: "z" },
