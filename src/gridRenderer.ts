@@ -1,4 +1,3 @@
-import type { Canvas } from "./canvas";
 import { getImageThicknessMultiplier } from "./imageThicknessMap";
 import { params } from "./params";
 import { rand } from "./rand";
@@ -68,9 +67,6 @@ function rangeBetweenCellEdges(
 }
 
 export class GridRenderer implements Renderer {
-  private canvasWidth: number;
-  private canvasHeight: number;
-
   // Cached layout, in normalized (0..1) coords
   private layout = {
     cols: 0,
@@ -91,20 +87,14 @@ export class GridRenderer implements Renderer {
   private patchCols: number = 0;
   private patchRows: number = 0;
 
-  constructor(paper: Canvas) {
-    this.canvasWidth = paper.width();
-    this.canvasHeight = paper.height();
-  }
-
   clear(_ctx: CanvasRenderingContext2D) {}
   pointerMove(_e: PointerEvent, _relx: number, _rely: number) {
     return false;
   }
 
-  resize(w: number, h: number) {
-    this.canvasWidth = w;
-    this.canvasHeight = h;
-  }
+  // The layout depends only on the paper aspect ratio, not on pixel size, so
+  // the grid looks the same at any canvas resolution.
+  resize(_w: number, _h: number) {}
 
   render(ctx: CanvasRenderingContext2D, _dt: number) {
     this.ensureCache();
@@ -117,17 +107,15 @@ export class GridRenderer implements Renderer {
    * the existing cache.
    */
   private ensureCache() {
-    // grid cell size in normalized (0..1) coords, based on params.grid.cellPx
-    const cellPx = Math.max(2, params.grid.cellPx);
+    // params.grid.cellsAcross cells along the shorter side of the paper; the
+    // longer side gets proportionally more, so cells stay roughly square.
+    const cellsAcross = Math.max(1, Math.round(params.grid.cellsAcross));
+    const aspect = params.canvasAspect;
+    const cols =
+      aspect <= 1 ? cellsAcross : Math.max(1, Math.round(cellsAcross * aspect));
+    const rows =
+      aspect <= 1 ? Math.max(1, Math.round(cellsAcross / aspect)) : cellsAcross;
     const drawSize = 1.0 - 2 * params.border;
-    const cols = Math.max(
-      1,
-      Math.floor(drawSize / (cellPx / this.canvasWidth)),
-    );
-    const rows = Math.max(
-      1,
-      Math.floor(drawSize / (cellPx / this.canvasHeight)),
-    );
 
     const stepX = drawSize / cols;
     const stepY = drawSize / rows;
@@ -142,9 +130,8 @@ export class GridRenderer implements Renderer {
 
     const randomKey = [
       params.border,
-      cellPx,
-      this.canvasWidth,
-      this.canvasHeight,
+      cols,
+      rows,
       params.grid.orientationVariationProbability,
     ].join();
     const strokeKey = [params.multiplicity, params.uniformity].join();

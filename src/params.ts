@@ -21,7 +21,7 @@ type Params = {
     center: { x: number; y: number };
   };
   grid: {
-    cellPx: number;
+    cellsAcross: number; // cells along the shorter side of the paper
     verticalThickness: number;
     orientationVariationProbability: number;
     patternVariation: number;
@@ -57,7 +57,7 @@ const params: Params = {
     center: { x: 0.0, y: 0.0 },
   },
   grid: {
-    cellPx: 20,
+    cellsAcross: 35,
     verticalThickness: 0.0,
     orientationVariationProbability: 1 / 25,
     patternVariation: 0.0,
@@ -92,8 +92,8 @@ function loadParamsFromObj(obj: Params) {
   params.linelengthVariation = obj.linelengthVariation as number;
   params.radialVoronoi.center.x = obj.radialVoronoi.center.x as number;
   params.radialVoronoi.center.y = obj.radialVoronoi.center.y as number;
-  if (obj.grid && typeof obj.grid.cellPx === "number") {
-    params.grid.cellPx = obj.grid.cellPx as number;
+  if (obj.grid && typeof obj.grid.cellsAcross === "number") {
+    params.grid.cellsAcross = obj.grid.cellsAcross as number;
   }
   if (obj.grid && typeof obj.grid.verticalThickness === "number") {
     params.grid.verticalThickness = obj.grid.verticalThickness as number;
@@ -123,7 +123,7 @@ function loadParamsFromObj(obj: Params) {
 
 // ---- URL query string (de)serialization ------------------------------------
 // Every leaf of `params` maps to a flat query key using dotted paths, e.g.
-// `thickness=0.048&grid.cellPx=20`. The current value's type in `params`
+// `thickness=0.048&grid.cellsAcross=35`. The current value's type in `params`
 // decides how the string from the URL is parsed.
 type ParamLeaf = number | boolean | string;
 type ParamTree = { [key: string]: ParamLeaf | ParamTree };

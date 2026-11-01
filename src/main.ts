@@ -109,7 +109,7 @@ setImageThicknessMapChangedCallback(() => {
   }
 });
 const voronoiRenderer = new VoronoiRadialRenderer(paper);
-const gridRenderer = new GridRenderer(paper);
+const gridRenderer = new GridRenderer();
 
 //loadStrokeAssets(paper.ctx);
 
@@ -174,13 +174,13 @@ const MODES: ModeDef[] = [
     activate: () => gridRenderer,
     settings: (folder) => {
       tip(
-        folder.addBinding(params.grid, "cellPx", {
-          min: 10,
-          max: 200,
+        folder.addBinding(params.grid, "cellsAcross", {
+          min: 2,
+          max: 100,
           step: 1,
-          label: "cell size (px)",
+          label: "cells across",
         }),
-        "Approximate size of each grid cell in pixels. The grid snaps to the drawable area.",
+        "Number of grid cells along the shorter side of the paper. The longer side gets proportionally more, so cells stay roughly square. Independent of screen or export resolution.",
       );
       tip(
         folder.addBinding(params.grid, "verticalThickness", {
