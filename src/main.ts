@@ -693,6 +693,22 @@ for (const p of panes) {
 const controlConsole = new ControlConsole({
   container: paneContainer("#console-panel"),
 });
+// Left: master playback controls above the channel strips.
+const mainColumn = controlConsole.addColumn();
+const transport = mainColumn.addRow({ panel: true });
+// Slightly smaller buttons keep the strips' sliders tall enough.
+transport.element.style.setProperty("--cc-button-size", "40px");
+transport.addButton({ label: "play" }); // toggle: lit while playing
+transport.addButton({ label: "step", mode: "continuous" });
+transport.addSlider({
+  label: "speed",
+  orientation: "horizontal",
+  min: 0,
+  max: 10,
+  step: 0.1,
+  value: 5,
+});
+const channels = mainColumn.addRow({ grow: true });
 const STRIP_KEYS = [
   { up: "q", down: "a", button: "z" },
   { up: "w", down: "s", button: "x" },
@@ -700,7 +716,7 @@ const STRIP_KEYS = [
   { up: "r", down: "f", button: "v" },
 ];
 STRIP_KEYS.forEach((keys, i) => {
-  controlConsole.addSliderWithButton({
+  channels.addSliderWithButton({
     label: `S${i + 1}`,
     upKey: keys.up,
     downKey: keys.down,
@@ -709,7 +725,7 @@ STRIP_KEYS.forEach((keys, i) => {
     buttonKey: keys.button,
   });
 });
-controlConsole.addSliderWithButton({
+channels.addSliderWithButton({
   label: "S5",
   upKey: "t",
   downKey: "g",
@@ -717,7 +733,7 @@ controlConsole.addSliderWithButton({
   gated: true,
   buttonKey: "b",
 });
-// The button grid with a row of dials underneath.
+// Right: the button grid with a row of dials underneath.
 const gridColumn = controlConsole.addColumn();
 const consoleGrid = gridColumn.addGrid({ columns: 2 });
 for (let i = 0; i < 4; i++) {
