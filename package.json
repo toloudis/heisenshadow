@@ -23,6 +23,7 @@
     "@tweakpane/core": "^2.0.5",
     "@types/d3": "^7.4.3",
     "@types/d3-delaunay": "^6.0.4",
+    "@webgpu/types": "^0.1.74",
     "gh-pages": "^6.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"

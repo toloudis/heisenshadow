@@ -33,6 +33,9 @@ importers:
       '@types/d3-delaunay':
         specifier: ^6.0.4
         version: 6.0.4
+      '@webgpu/types':
+        specifier: ^0.1.74
+        version: 0.1.74
       gh-pages:
         specifier: ^6.3.0
         version: 6.3.0
@@ -451,6 +454,9 @@ packages:
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
+
+  '@webgpu/types@0.1.74':
+    resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
 
   array-union@2.1.0:
     resolution: {integrity: sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==}
@@ -1238,6 +1244,8 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  '@webgpu/types@0.1.74': {}
 
   array-union@2.1.0: {}
 
