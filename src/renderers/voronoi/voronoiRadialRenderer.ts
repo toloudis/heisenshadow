@@ -5,9 +5,9 @@ import { rand } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
 import { drawClusterParams } from "../../strokes";
 import {
-  applyVoronoiStrokeSettings,
   voronoiParams,
   voronoiSettings,
+  voronoiStrokeOptions,
 } from "./settings";
 import type { VNCell } from "./voronoi";
 import { createVoronoiFromRandomPoints, type VoronoiDiagram } from "./voronoi";
@@ -45,7 +45,6 @@ export class VoronoiRadialRenderer implements Renderer {
   render(ctx: CanvasRenderingContext2D, dt: number) {
     const delta = 0.0001 * (params.speed + 1.0);
     this.framet = this.framet + delta * dt;
-    applyVoronoiStrokeSettings();
     this.drawAllVoronoiCells_Radial(ctx, this.framet, this.voronoi);
   }
 
@@ -76,6 +75,7 @@ export class VoronoiRadialRenderer implements Renderer {
     spiralness: number,
     voronoi: VoronoiDiagram,
   ) {
+    const strokeOptions = voronoiStrokeOptions();
     for (const cell of voronoi.cells) {
       // if cell is close to edge, then skip it
       if (
@@ -136,6 +136,7 @@ export class VoronoiRadialRenderer implements Renderer {
           ang,
           linewidth,
           voronoiParams.multiplicity,
+          strokeOptions,
         );
       } else {
         const ang =
@@ -159,6 +160,7 @@ export class VoronoiRadialRenderer implements Renderer {
           ang,
           linewidth,
           voronoiParams.multiplicity,
+          strokeOptions,
         );
       }
       ctx.restore();

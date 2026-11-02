@@ -6,71 +6,16 @@ import assetUrl4 from "./assets/strokes-4.png";
 import assetUrl5 from "./assets/strokes-5.png";
 import { rand } from "./rand";
 
-let curveLengthVariation = 0.0;
-let curveVariability = 0.25;
-let curvesizex = 0.03;
-let curvesizey = 0.03;
 const strokeImages: HTMLImageElement[] = [];
 const strokePatterns: CanvasPattern[] = [];
 
-export function setCurveSize(
-  sizex: number,
-  sizey: number,
-  _variationx: number,
-  variationy: number,
-) {
-  curvesizex = sizex;
-  curvesizey = sizey;
-  curveLengthVariation = variationy;
-}
-export function setCurveUniformity(uniformity: number) {
-  curveVariability = 1.0 - uniformity;
-}
-
-export function curvy2(ctx: CanvasRenderingContext2D) {
-  // adjust size based on curve length variation
-  const sizey =
-    curvesizey +
-    curvesizey * rand(-curveLengthVariation * 0.5, curveLengthVariation * 0.5);
-  // adjust control point angles based on variability
-  ctx.moveTo(0.0 * curvesizex, -1.0 * sizey);
-  ctx.bezierCurveTo(
-    0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
-    -0.333 * sizey + sizey * rand(-curveVariability, curveVariability),
-    0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability),
-    0.333 * sizey + sizey * rand(-curveVariability, curveVariability),
-    0.0 * curvesizex,
-    1.0 * sizey,
-  );
-  ctx.stroke();
-  ctx.moveTo(0, 0);
-}
-
-export function triad(
-  ctx: CanvasRenderingContext2D,
-  n: number,
-  strokeFn: (ctx: CanvasRenderingContext2D) => void,
-  dx: number,
-  dy: number,
-) {
-  if (n < 1) {
-    return;
-  }
-  // first pos:
-  const dx0 = 0.5 * (n - 1) * -dx;
-  const dy0 = 0.5 * (n - 1) * -dx;
-  ctx.beginPath();
-  ctx.translate(dx0, dy0);
-  strokeFn(ctx);
-  ctx.stroke();
-  for (let i = 1; i < n; ++i) {
-    ctx.beginPath();
-    ctx.translate(dx, dy);
-    strokeFn(ctx);
-    ctx.stroke();
-  }
-  ctx.moveTo(0, 0);
-}
+/** Shape of the bezier curves a Stroke builds. */
+export type StrokeOptions = {
+  sizeX: number; // half-width scale of the control point jitter
+  sizeY: number; // half-length of the stroke
+  lengthVariation: number; // sizeY varies by up to +/- half of this fraction
+  variability: number; // control point jitter, as a fraction of size (1 - uniformity)
+};
 
 export function loadStrokeAssets(ctx: CanvasRenderingContext2D) {
   const urls = [
@@ -94,17 +39,26 @@ export function loadStrokeAssets(ctx: CanvasRenderingContext2D) {
   }
 }
 
-export function strokeImage(ctx: CanvasRenderingContext2D, index: number) {
+export function strokeImage(
+  ctx: CanvasRenderingContext2D,
+  index: number,
+  sizeX: number,
+  sizeY: number,
+) {
   const aspect = strokeImages[index].width / strokeImages[index].height;
   ctx.drawImage(
     strokeImages[index],
     0.0,
     0.0,
-    curvesizex * 2.0 * aspect,
-    curvesizey * 2.0,
+    sizeX * 2.0 * aspect,
+    sizeY * 2.0,
   );
 }
 
+/**
+ * Draw a cluster of `multiplicity` freshly built strokes at (x, y), rotated
+ * by ang degrees. The strokes are not kept, so each call re-rolls them.
+ */
 export function drawClusterParams(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -112,30 +66,23 @@ export function drawClusterParams(
   ang: number,
   linewidth: number,
   multiplicity: number,
+  options: StrokeOptions,
 ) {
-  const oldlw = ctx.lineWidth;
-
-  ctx.translate(x, y);
-
-  ctx.rotate((ang * Math.PI) / 180);
-  ctx.lineWidth = linewidth;
-
-  const triadspacing = 0.01;
-  triad(ctx, multiplicity, curvy2, triadspacing, 0);
-
-  // } else {
-  //   const oldAlpha = ctx.globalAlpha;
-  //   ctx.globalAlpha = y + params.thickness;
-  //   strokeImage(ctx, params.strokeType - 1);
-  //   ctx.globalAlpha = oldAlpha;
-  // }
-  ctx.rotate((-ang * Math.PI) / 180);
-  ctx.translate(-x, -y);
-  ctx.setTransform(ctx.canvas.width, 0, 0, ctx.canvas.height, 0, 0);
-  // ctx.stroke();
-  ctx.lineWidth = oldlw;
+  const cluster = new Cluster();
+  cluster.x = x;
+  cluster.y = y;
+  cluster.ang = ang;
+  cluster.linewidth = linewidth;
+  for (let i = 0; i < multiplicity; ++i) {
+    cluster.strokes.push(new Stroke(options));
+  }
+  cluster.draw(ctx);
 }
 
+/**
+ * A single cubic bezier stroke, running vertically through the origin from
+ * (0, -sizeY) to (0, sizeY), with its two middle control points jittered.
+ */
 export class Stroke {
   x0: number = 0;
   y0: number = 0;
@@ -146,76 +93,68 @@ export class Stroke {
   x3: number = 0;
   y3: number = 0;
 
-  constructor() {
+  constructor(options: StrokeOptions) {
+    const { sizeX, lengthVariation, variability } = options;
     // adjust size based on curve length variation
-    const sizey =
-      curvesizey +
-      curvesizey *
-        rand(-curveLengthVariation * 0.5, curveLengthVariation * 0.5);
+    const sizeY =
+      options.sizeY +
+      options.sizeY * rand(-lengthVariation * 0.5, lengthVariation * 0.5);
     // adjust control point angles based on variability
 
-    this.x0 = 0.0 * curvesizex;
-    this.y0 = -1.0 * sizey;
+    this.x0 = 0.0 * sizeX;
+    this.y0 = -1.0 * sizeY;
 
-    this.x1 =
-      0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability);
-    this.y1 =
-      -0.333 * sizey + sizey * rand(-curveVariability, curveVariability);
-    this.x2 =
-      0.0 * curvesizex + curvesizex * rand(-curveVariability, curveVariability);
-    this.y2 = 0.333 * sizey + sizey * rand(-curveVariability, curveVariability);
-    this.x3 = 0.0 * curvesizex;
-    this.y3 = 1.0 * sizey;
+    this.x1 = 0.0 * sizeX + sizeX * rand(-variability, variability);
+    this.y1 = -0.333 * sizeY + sizeY * rand(-variability, variability);
+    this.x2 = 0.0 * sizeX + sizeX * rand(-variability, variability);
+    this.y2 = 0.333 * sizeY + sizeY * rand(-variability, variability);
+    this.x3 = 0.0 * sizeX;
+    this.y3 = 1.0 * sizeY;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.moveTo(this.x0, this.y0);
-    ctx.bezierCurveTo(this.x1, this.y1, this.x2, this.y2, this.x3, this.y3);
+  /** Stroke the curve as its own path, scaled uniformly by `scale`. */
+  draw(ctx: CanvasRenderingContext2D, scale: number = 1) {
+    ctx.beginPath();
+    ctx.moveTo(this.x0 * scale, this.y0 * scale);
+    ctx.bezierCurveTo(
+      this.x1 * scale,
+      this.y1 * scale,
+      this.x2 * scale,
+      this.y2 * scale,
+      this.x3 * scale,
+      this.y3 * scale,
+    );
     ctx.stroke();
-    ctx.moveTo(0, 0);
   }
 }
 
+/**
+ * Strokes drawn side by side, spaced triadSpacing apart and centered on
+ * (x, y), all rotated by ang degrees.
+ */
 export class Cluster {
   public x: number = 0;
   public y: number = 0;
   public ang: number = 0;
   public linewidth: number = 0.01;
-  public multiplicity: number = 3;
   public triadSpacing: number = 0.01;
   public strokes: Stroke[] = [];
 
   draw(ctx: CanvasRenderingContext2D) {
-    const oldlw = ctx.lineWidth;
-
+    // save/restore also restores the transform and line width
+    ctx.save();
     ctx.translate(this.x, this.y);
-
     ctx.rotate((this.ang * Math.PI) / 180);
     ctx.lineWidth = this.linewidth;
 
-    // BEGIN STROKE DRAWING
-    const n = this.multiplicity; // this.strokes.length
+    const n = this.strokes.length;
     const dx = this.triadSpacing;
-    const dy = 0;
     // first pos:
-    const dx0 = 0.5 * (n - 1) * -dx;
-    const dy0 = 0.5 * (n - 1) * -dx;
-    ctx.beginPath();
-    ctx.translate(dx0, dy0);
-    this.strokes[0].draw(ctx);
-    ctx.stroke();
-    for (let i = 1; i < n; ++i) {
-      ctx.beginPath();
-      ctx.translate(dx, dy);
+    ctx.translate(0.5 * (n - 1) * -dx, 0);
+    for (let i = 0; i < n; ++i) {
+      if (i > 0) ctx.translate(dx, 0);
       this.strokes[i].draw(ctx);
-      ctx.stroke();
     }
-    ctx.moveTo(0, 0);
-    // END STROKE DRAWING
-
-    ctx.rotate((-this.ang * Math.PI) / 180);
-    ctx.translate(-this.x, -this.y);
-    ctx.setTransform(ctx.canvas.width, 0, 0, ctx.canvas.height, 0, 0);
-    ctx.lineWidth = oldlw;
+    ctx.restore();
   }
 }

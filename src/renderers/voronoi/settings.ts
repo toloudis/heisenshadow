@@ -1,6 +1,6 @@
 import { registerParams } from "../../params";
 import { type RendererSetting, setting } from "../../renderer";
-import { setCurveSize, setCurveUniformity } from "../../strokes";
+import type { StrokeOptions } from "../../strokes";
 import { type MarkKey, markSettings } from "../marks";
 
 /**
@@ -50,16 +50,14 @@ export function voronoiSettings(variant: VoronoiVariant): RendererSetting[] {
 }
 
 /**
- * Push the voronoi line length and curve uniformity into the strokes module,
- * which draws (and builds strokes) from its own copy. Call right before
- * drawing or building strokes, so animated values take effect.
+ * Stroke shape from the current voronoi line length and curve uniformity.
+ * Call right before building strokes, so animated values take effect.
  */
-export function applyVoronoiStrokeSettings() {
-  setCurveSize(
-    0.03,
-    voronoiParams.linelength,
-    0.0,
-    voronoiParams.linelengthVariation,
-  );
-  setCurveUniformity(voronoiParams.uniformity);
+export function voronoiStrokeOptions(): StrokeOptions {
+  return {
+    sizeX: 0.03,
+    sizeY: voronoiParams.linelength,
+    lengthVariation: voronoiParams.linelengthVariation,
+    variability: 1.0 - voronoiParams.uniformity,
+  };
 }

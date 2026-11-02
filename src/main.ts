@@ -590,7 +590,7 @@ exportButton.on("click", async () => {
 // When any pane binding changes (slider, checkbox, etc.) keep the URL in sync,
 // and while the animation is paused, redraw once so the change is visible
 // immediately. Tweakpane fires this after the binding's own change handlers
-// (setCurveSize, applyPaperShape, ...), so their side effects are applied.
+// (applyPaperShape, ...), so their side effects are applied.
 for (const p of panes) {
   p.on("change", (ev) => {
     // Refreshing the read-only size line below fires this event too (always:

@@ -5,9 +5,9 @@ import { getRandomSeed, newRandomSeed, rand, setRandomSeed } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
 import { Cluster, Stroke } from "../../strokes";
 import {
-  applyVoronoiStrokeSettings,
   voronoiParams,
   voronoiSettings,
+  voronoiStrokeOptions,
 } from "./settings";
 import type { VNCell } from "./voronoi";
 import { createVoronoiFromRandomPoints, type VoronoiDiagram } from "./voronoi";
@@ -75,7 +75,6 @@ export class VoronoiRadialRendererRetained implements Renderer {
   // leaving the frame's random sequence where it was.
   private build() {
     this.builtKey = this.bakedKey();
-    applyVoronoiStrokeSettings();
     const frameSeed = getRandomSeed();
     setRandomSeed(this.buildSeed);
     this.predraw(45.0); // TODO parameter!
@@ -83,6 +82,7 @@ export class VoronoiRadialRendererRetained implements Renderer {
   }
 
   predraw(spiralness: number) {
+    const strokeOptions = voronoiStrokeOptions();
     this.clusters = [];
     for (const cell of this.voronoi.cells) {
       // look at centroid;
@@ -121,9 +121,8 @@ export class VoronoiRadialRendererRetained implements Renderer {
       cluster.y = cell.centroid.y;
       cluster.ang = ang;
       cluster.linewidth = linewidth;
-      cluster.multiplicity = voronoiParams.multiplicity;
       for (let i = 0; i < voronoiParams.multiplicity; ++i) {
-        cluster.strokes.push(new Stroke());
+        cluster.strokes.push(new Stroke(strokeOptions));
       }
       this.clusters.push({ cell, cluster });
     }
@@ -221,9 +220,9 @@ export class VoronoiRadialRendererRetained implements Renderer {
 
     cluster.ang = ang;
     cluster.linewidth = linewidth;
-    cluster.multiplicity = voronoiParams.multiplicity;
+    const strokeOptions = voronoiStrokeOptions();
     for (let i = 0; i < voronoiParams.multiplicity; ++i) {
-      cluster.strokes.push(new Stroke());
+      cluster.strokes.push(new Stroke(strokeOptions));
     }
     this.clusters.push({ cell, cluster });
     console.log("added cluster");

@@ -2,7 +2,7 @@ import { getImageThicknessMultiplier } from "../../imageThicknessMap";
 import { params } from "../../params";
 import { rand } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
-import { Stroke, setCurveSize, setCurveUniformity } from "../../strokes";
+import { Stroke, type StrokeOptions } from "../../strokes";
 import { gridParams, gridSettings } from "./settings";
 
 // Base pattern, read going up a column: "\", "|", "/", "-", repeating (i.e.
@@ -12,7 +12,7 @@ import { gridParams, gridSettings } from "./settings";
 const COLUMN_VERTICALITY_PATTERN = [-0.5, 1, 0.5, 0];
 const COLUMN_PHASE_SHIFT = 1;
 
-// Strokes are built at this reference half-length (sizex == sizey == 1) with
+// Strokes are built at this reference half-length (sizeX == sizeY == 1) with
 // no length variation baked in. At draw time we scale each stroke to fit the
 // cell based on its position and angle, then by gridParams.lineLength, and
 // optionally by a per-stroke length jitter driven by gridParams.linelengthVariation.
@@ -151,8 +151,12 @@ export class GridRenderer implements Renderer {
 
     // Build strokes at unit reference size with no length variation. We scale
     // them at draw time to fit each cell.
-    setCurveUniformity(gridParams.uniformity);
-    setCurveSize(REF_SIZE, REF_SIZE, 0.0, 0.0);
+    const strokeOptions: StrokeOptions = {
+      sizeX: REF_SIZE,
+      sizeY: REF_SIZE,
+      lengthVariation: 0.0,
+      variability: 1.0 - gridParams.uniformity,
+    };
 
     const mult = Math.max(1, gridParams.multiplicity);
     const orientationVariationProbability = Math.max(
@@ -217,7 +221,7 @@ export class GridRenderer implements Renderer {
         const strokes: Stroke[] = [];
         const strokeLenVar01: number[] = [];
         for (let s = 0; s < mult; s++) {
-          strokes.push(new Stroke());
+          strokes.push(new Stroke(strokeOptions));
           strokeLenVar01.push(rand(-1, 1));
         }
 
@@ -372,23 +376,12 @@ export class GridRenderer implements Renderer {
           const centerS = (sMax + sMin) * 0.5;
           const sc =
             halfLen * lineLength * (1 + cell.strokeLenVar01[s] * lenVarAmt);
-          const sk = cell.strokes[s];
 
           ctx.save();
           // Shift along the local stroke axis to the midpoint of the
           // in-cell segment, so endpoints land on the cell edges.
           ctx.translate(xOffset, centerS);
-          ctx.beginPath();
-          ctx.moveTo(sk.x0 * sc, sk.y0 * sc);
-          ctx.bezierCurveTo(
-            sk.x1 * sc,
-            sk.y1 * sc,
-            sk.x2 * sc,
-            sk.y2 * sc,
-            sk.x3 * sc,
-            sk.y3 * sc,
-          );
-          ctx.stroke();
+          cell.strokes[s].draw(ctx, sc);
           ctx.restore();
         }
 
