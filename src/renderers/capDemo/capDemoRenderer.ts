@@ -32,7 +32,7 @@ const ROW_SPACING = 0.19;
 
 // Pen strokes are a hand pressing in, gliding and lifting off: a dot this
 // wide (the full line width at p0) narrows to a hairline, then flares
-// slightly into a butt end.
+// slightly into a round end, as from a round nib.
 const PEN_DOT_WIDTH = 0.011;
 // The width changes over parameter t, not distance, so p1 and p2 sit near
 // their ends: the curve moves slowly there, the dot and flare each happen
@@ -54,7 +54,7 @@ const PEN_MAX_BEND = HALF_LEN;
  * constant width; the right half repeats the same strokes swelling toward p1
  * and thinning toward p2. Across each half the strokes turn and bend more.
  * The last row is pen strokes: a dot narrowing to a 1px line, then flaring a
- * little into a butt end, curving more from column to column to show how
+ * little into a round end, curving more from column to column to show how
  * bending distorts the ends.
  */
 export class CapDemoRenderer implements Renderer {
@@ -132,7 +132,6 @@ export class CapDemoRenderer implements Renderer {
     // Pen row: the hairline is 1px, as a fraction of the dot
     const hairline = this.onePx / PEN_DOT_WIDTH;
     extras.capStyle = "round";
-    extras.endCapStyle = "butt";
     extras.width1 = PEN_WIDTH1;
     extras.width2 = PEN_WIDTH2_HAIRLINES * hairline;
     extras.width3 = PEN_FLARE_HAIRLINES * hairline;
