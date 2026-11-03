@@ -5,8 +5,8 @@
 const STROKE_STRUCT = `
 struct Stroke {
     p01: vec4f, p23: vec4f,
-    style: vec4f, // line width, cap style (0 butt, 1 round, 2 taper), taper fraction, width scale at p1
-    extra: vec4f, // width scale at p2, clip polygon start, clip polygon point count, unused
+    widths: vec4f, // line width at p0, p1, p2, p3
+    style: vec4f, // caps (start + 4 * end; each 0 butt, 1 round, 2 taper), taper fraction, clip polygon start, clip polygon point count
 }
 // cap: x is -1 or 1 on the start or end cap extension and 0 along the body,
 // y is 1 or -1 on the left or right edge. Inside a round cap, x^2 + y^2 <= 1.
@@ -57,16 +57,18 @@ fn sample_tangent(p0: vec2f, p1: vec2f, p2: vec2f, p3: vec2f, t: f32) -> vec2f {
     if (dot(d, d) < 1e-20) { return normalize(p3 - p0); }
     return normalize(d);
 }
-// Fraction of the full line width at t: a cubic bezier through 1, width1,
-// width2, 1, narrowed toward the ends for tapered strokes.
-fn width_envelope(t: f32, stroke: Stroke) -> f32 {
+// Line width at t: a cubic bezier through the four control point widths
+// (clamped at 0, as negative middle widths can dip below), narrowed toward
+// the tapered ends.
+fn line_width(t: f32, stroke: Stroke) -> f32 {
     let mt = 1.0 - t;
-    let w = mt*mt*mt + 3.0*mt*mt*t*stroke.style.w + 3.0*mt*t*t*stroke.extra.x + t*t*t;
-    if (u32(stroke.style.y) == 2u) {
-        let e = min(min(t, 1.0 - t) / stroke.style.z, 1.0);
-        return w * sin(0.5 * PI * e);
-    }
-    return w;
+    let k = stroke.widths;
+    let w = max(mt*mt*mt*k.x + 3.0*mt*mt*t*k.y + 3.0*mt*t*t*k.z + t*t*t*k.w, 0.0);
+    let caps = u32(stroke.style.x);
+    // distance in t to the nearest tapered end (or 1 if neither is)
+    let d = min(select(1.0, t, caps % 4u == 2u), select(1.0, mt, caps / 4u == 2u));
+    let e = min(d / stroke.style.y, 1.0);
+    return w * sin(0.5 * PI * e);
 }
 
 // For butt and taper ends the cap extensions have no length.
@@ -80,30 +82,31 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let p1 = stroke.p01.zw;
     let p2 = stroke.p23.xy;
     let p3 = stroke.p23.zw;
-    let h_width = stroke.style.x * 0.5;
     let verts = (SUBDIVISIONS + 2u) * 2u;
     let vtx_offset = stroke_idx * verts;
-    let round = u32(stroke.style.y) == 1u;
+    let caps = u32(stroke.style.x);
+    let round_start = caps % 4u == 1u;
+    let round_end = caps / 4u == 1u;
 
     // Round caps extend by the (possibly widened) half width at each end.
     let tan0 = sample_tangent(p0, p1, p2, p3, 0.0);
-    let e0 = edge(tan0, h_width * width_envelope(0.0, stroke));
-    let start_pos = p0 - tan0 * select(0.0, length(e0.offset), round);
+    let e0 = edge(tan0, 0.5 * line_width(0.0, stroke));
+    let start_pos = p0 - tan0 * select(0.0, length(e0.offset), round_start);
     output_vertices[vtx_offset] = StripVertex(start_pos + e0.offset, vec2f(-1.0, 1.0), e0.coverage);
     output_vertices[vtx_offset + 1u] = StripVertex(start_pos - e0.offset, vec2f(-1.0, -1.0), e0.coverage);
 
     for (var i = 0u; i < SUBDIVISIONS; i++) {
         let t = f32(i) / f32(SUBDIVISIONS - 1u);
         let pos = sample_bezier(p0, p1, p2, p3, t);
-        let e = edge(sample_tangent(p0, p1, p2, p3, t), h_width * width_envelope(t, stroke));
+        let e = edge(sample_tangent(p0, p1, p2, p3, t), 0.5 * line_width(t, stroke));
         let idx = vtx_offset + 2u + i * 2u;
         output_vertices[idx] = StripVertex(pos + e.offset, vec2f(0.0, 1.0), e.coverage);
         output_vertices[idx + 1u] = StripVertex(pos - e.offset, vec2f(0.0, -1.0), e.coverage);
     }
 
     let tan1 = sample_tangent(p0, p1, p2, p3, 1.0);
-    let e1 = edge(tan1, h_width * width_envelope(1.0, stroke));
-    let end_pos = p3 + tan1 * select(0.0, length(e1.offset), round);
+    let e1 = edge(tan1, 0.5 * line_width(1.0, stroke));
+    let end_pos = p3 + tan1 * select(0.0, length(e1.offset), round_end);
     let end_idx = vtx_offset + verts - 2u;
     output_vertices[end_idx] = StripVertex(end_pos + e1.offset, vec2f(1.0, 1.0), e1.coverage);
     output_vertices[end_idx + 1u] = StripVertex(end_pos - e1.offset, vec2f(1.0, -1.0), e1.coverage);
@@ -137,11 +140,11 @@ fn vs_main(
     @builtin(instance_index) stroke_idx: u32,
 ) -> VertexOut {
     let v = vertices[stroke_idx * VERTS_PER_STROKE + vertex_idx];
-    let extra = strokes[stroke_idx].extra;
+    let style = strokes[stroke_idx].style;
     // target coordinates are 0..1 with y down
     let target_pos = v.pos * view.xy + view.zw;
     let ndc = vec2f(target_pos.x * 2.0 - 1.0, 1.0 - target_pos.y * 2.0);
-    return VertexOut(vec4f(ndc, 0.0, 1.0), v.pos, v.cap, v.coverage, vec2u(u32(extra.y), u32(extra.z)));
+    return VertexOut(vec4f(ndc, 0.0, 1.0), v.pos, v.cap, v.coverage, vec2u(u32(style.z), u32(style.w)));
 }
 
 // Clip polygons are convex and counter-clockwise, so a point is inside when

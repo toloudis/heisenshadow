@@ -3,14 +3,15 @@
 // width and clip polygon.
 
 // How stroke ends are drawn. "round" matches the canvas renderers'
-// lineCap = "round"; "taper" narrows the width to a point over the first and
-// last taperFraction of each stroke.
+// lineCap = "round"; "taper" narrows the width to a point over the first or
+// last taperFraction of the stroke.
 export const CAP_STYLES = { butt: 0, round: 1, taper: 2 };
 
 // Packed layout matching the Stroke struct in both shaders:
 // p0, p1, p2, p3 (8 floats);
-// line width, cap style, taper fraction, width scale at p1;
-// width scale at p2, clip polygon start, clip polygon point count, padding.
+// line width at p0, p1, p2, p3;
+// caps (start + 4 * end), taper fraction, clip polygon start, clip polygon
+// point count.
 export const FLOATS_PER_STROKE = 16;
 // Saved state per save(): transform (6), clip start, clip count, line width.
 const FLOATS_PER_SAVE = 9;
@@ -32,11 +33,16 @@ export class RecordingContext {
   // Not part of CanvasRenderingContext2D: the end style and width profile
   // recorded with each stroke. The renderers leave these at their defaults.
   capStyle: keyof typeof CAP_STYLES = "round";
+  // The style at p3, when it differs from capStyle (which then is just p0's)
+  endCapStyle: keyof typeof CAP_STYLES | undefined = undefined;
   taperFraction = 0.5;
-  // Line width scales at the two middle control points. The width along the
-  // stroke is a cubic bezier through 1, width1, width2, 1.
+  // Line width scales at the four control points: each stroke is recorded
+  // with widths lineWidth * widthN, and the width along it is a cubic bezier
+  // through those, clamped at 0.
+  width0 = 1;
   width1 = 1;
   width2 = 1;
+  width3 = 1;
 
   strokeData = new Float32Array(FLOATS_PER_STROKE * 1024);
   strokeCount = 0;
@@ -72,9 +78,12 @@ export class RecordingContext {
     this.stack.length = 0;
     this.lineWidth = 1;
     this.capStyle = "round";
+    this.endCapStyle = undefined;
     this.taperFraction = 0.5;
+    this.width0 = 1;
     this.width1 = 1;
     this.width2 = 1;
+    this.width3 = 1;
     this.beginPath();
   }
 
@@ -173,14 +182,16 @@ export class RecordingContext {
     }
     const out = this.strokeData;
     out.set(this.path.subarray(0, 8), base);
-    out[base + 8] = this.lineWidth;
-    out[base + 9] = CAP_STYLES[this.capStyle];
-    out[base + 10] = this.taperFraction;
-    out[base + 11] = this.width1;
-    out[base + 12] = this.width2;
-    out[base + 13] = this.clipStart;
-    out[base + 14] = this.clipCount;
-    out[base + 15] = 0;
+    out[base + 8] = this.lineWidth * this.width0;
+    out[base + 9] = this.lineWidth * this.width1;
+    out[base + 10] = this.lineWidth * this.width2;
+    out[base + 11] = this.lineWidth * this.width3;
+    out[base + 12] =
+      CAP_STYLES[this.capStyle] +
+      4 * CAP_STYLES[this.endCapStyle ?? this.capStyle];
+    out[base + 13] = this.taperFraction;
+    out[base + 14] = this.clipStart;
+    out[base + 15] = this.clipCount;
     this.strokeCount++;
   }
 
