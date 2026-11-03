@@ -102,6 +102,9 @@ struct VertexOut {
 @group(0) @binding(0) var<storage, read> vertices: array<StripVertex>;
 @group(0) @binding(1) var<storage, read> strokes: array<Stroke>;
 @group(0) @binding(2) var<storage, read> clip_points: array<vec2f>;
+// Maps paper coordinates to 0..1 across the render target: scale in xy, then
+// offset in zw. Identity for the screen; export draws in tiles.
+@group(0) @binding(3) var<uniform> view: vec4f;
 override VERTS_PER_STROKE: u32;
 
 @vertex
@@ -111,8 +114,9 @@ fn vs_main(
 ) -> VertexOut {
     let v = vertices[stroke_idx * VERTS_PER_STROKE + vertex_idx];
     let extra = strokes[stroke_idx].extra;
-    // paper coordinates are 0..1 with y down
-    let ndc = vec2f(v.pos.x * 2.0 - 1.0, 1.0 - v.pos.y * 2.0);
+    // target coordinates are 0..1 with y down
+    let target_pos = v.pos * view.xy + view.zw;
+    let ndc = vec2f(target_pos.x * 2.0 - 1.0, 1.0 - target_pos.y * 2.0);
     return VertexOut(vec4f(ndc, 0.0, 1.0), v.pos, v.cap, vec2u(u32(extra.y), u32(extra.z)));
 }
 

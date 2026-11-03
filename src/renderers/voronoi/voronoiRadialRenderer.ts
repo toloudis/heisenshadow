@@ -1,5 +1,5 @@
-import type { Canvas } from "../../canvas";
 import { getImageThicknessMultiplier } from "../../imageThicknessMap";
+import type { Paper } from "../../paper";
 import { params } from "../../params";
 import { rand } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
@@ -24,7 +24,7 @@ export class VoronoiRadialRenderer implements Renderer {
   private voronoi: VoronoiDiagram;
 
   constructor(
-    paper: Canvas,
+    paper: Paper,
     private readonly mode: VoronoiMode,
   ) {
     this.framet = 0;

@@ -9,7 +9,9 @@ import "./style.css";
 import { Animator } from "./animation";
 import { Canvas } from "./canvas";
 import { ControlConsole } from "./console";
+import { GpuCanvas } from "./gpuCanvas";
 import { setImageThicknessMapChangedCallback } from "./imageThicknessMap";
+import type { Paper } from "./paper";
 import {
   allParams,
   loadParamsFromObj,
@@ -61,7 +63,13 @@ loadParamsFromSearchParams(initialSearch);
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#canvas");
 if (!canvasElement) throw new Error("Canvas element not found");
-const paper = new Canvas(canvasElement, params.canvasAspect);
+// Draw with WebGPU, falling back to canvas 2D where it isn't available or
+// when the URL asks for it with backend=canvas2d.
+const backendParam = initialSearch.get("backend");
+const paper: Paper =
+  (backendParam !== "canvas2d" &&
+    (await GpuCanvas.create(canvasElement, params.canvasAspect))) ||
+  new Canvas(canvasElement, params.canvasAspect);
 
 // Paper shapes as portrait width / height (<= 1); the orientation dropdown
 // flips them to landscape. All ISO A sizes (A3, A4, A5, ...) share the 1:√2
@@ -257,6 +265,7 @@ let activeModeId = DEFAULT_MODE_ID;
 function syncUrl() {
   const search = new URLSearchParams();
   search.set("mode", activeModeId);
+  if (backendParam) search.set("backend", backendParam);
   writeParamsToSearchParams(search);
   const url = new URL(window.location.href);
   url.search = search.toString();

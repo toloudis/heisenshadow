@@ -19,7 +19,7 @@ import { Pane } from "tweakpane";
 
 import "./style.css";
 import { Animator } from "./animation";
-import type { Canvas } from "./canvas";
+import type { Paper } from "./paper";
 import { loadParamsFromSearchParams, params } from "./params";
 import { newRandomSeed, setRandomSeed } from "./rand";
 import type { Renderer, RendererSetting } from "./renderer";
@@ -71,7 +71,7 @@ function setup2dContext(w: number, h: number) {
 const paperSize = {
   width: () => canvas2d.width,
   height: () => canvas2d.height,
-} as unknown as Canvas;
+} as unknown as Paper;
 
 const MODES: Record<string, { title: string; create: () => Renderer }> = {
   voronoi: {

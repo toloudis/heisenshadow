@@ -1,5 +1,5 @@
-import type { Canvas } from "../../canvas";
 import { getImageThicknessMultiplier } from "../../imageThicknessMap";
+import type { Paper } from "../../paper";
 import { params } from "../../params";
 import { getRandomSeed, newRandomSeed, rand, setRandomSeed } from "../../rand";
 import type { Renderer, RendererSetting } from "../../renderer";
@@ -26,7 +26,7 @@ export class VoronoiRadialRendererRetained implements Renderer {
   private readonly buildSeed = newRandomSeed();
   private builtKey = "";
 
-  constructor(paper: Canvas) {
+  constructor(paper: Paper) {
     this.clusters = [];
     this.framet = 0;
     this.inCell = -1;
