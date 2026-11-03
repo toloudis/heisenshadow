@@ -12,7 +12,8 @@
 // per stroke, clipping per sample against the stroke's polygon. That code is in
 // renderers/webgpu/.
 //
-// The standalone end cap demo that used to live here is in capDemo.ts.
+// The end cap demo that used to live here is now the Cap Demo renderer
+// (renderers/capDemo/), selectable in main.ts.
 
 import type { FolderApi } from "tweakpane";
 import { Pane } from "tweakpane";

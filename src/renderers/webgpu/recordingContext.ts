@@ -71,6 +71,10 @@ export class RecordingContext {
     this.clipCount = 0;
     this.stack.length = 0;
     this.lineWidth = 1;
+    this.capStyle = "round";
+    this.taperFraction = 0.5;
+    this.width1 = 1;
+    this.width2 = 1;
     this.beginPath();
   }
 

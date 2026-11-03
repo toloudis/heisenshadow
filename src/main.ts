@@ -20,6 +20,7 @@ import {
   writeParamsToSearchParams,
 } from "./params";
 import type { Renderer, RendererSetting } from "./renderer";
+import { CapDemoRenderer } from "./renderers/capDemo/capDemoRenderer";
 import { GridRenderer } from "./renderers/grid/gridRenderer";
 import { gridParams } from "./renderers/grid/settings";
 import { voronoiParams } from "./renderers/voronoi/settings";
@@ -198,6 +199,11 @@ const MODES: ModeDef[] = [
     id: "grid",
     title: "Grid",
     create: () => new GridRenderer(),
+  },
+  {
+    id: "cap-demo",
+    title: "Cap Demo",
+    create: () => new CapDemoRenderer(),
   },
 ];
 const DEFAULT_MODE_ID = "grid";

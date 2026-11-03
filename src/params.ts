@@ -51,6 +51,7 @@ function registerParams<T extends object>(name: string, values: T): T {
 
 /** Every param, app-wide and registered, as one plain tree (e.g. for Save Settings). */
 function allParams(): ParamTree {
+  snapNearZeroParams();
   return {
     ...(params as unknown as ParamTree),
     ...Object.fromEntries(sections),
@@ -105,6 +106,21 @@ function forEachParam(
   }
 }
 
+// Floating point leftovers (e.g. a slider dragged to 0 landing on 5e-17) are
+// zero for every param, and would otherwise end up in links and settings.
+const NEAR_ZERO = 1e-9;
+function snapNearZero(n: number): number {
+  return Math.abs(n) < NEAR_ZERO ? 0 : n;
+}
+
+/** Set numeric params within NEAR_ZERO of 0 to exactly 0. */
+function snapNearZeroParams() {
+  forEachParam((_path, holder, key) => {
+    const value = holder[key];
+    if (typeof value === "number") holder[key] = snapNearZero(value);
+  });
+}
+
 /**
  * Set each param from `lookup(path)`, falling back to its legacy path, when
  * the found value has (or for strings from the URL, parses to) the param's
@@ -120,7 +136,7 @@ function loadParams(lookup: (path: string) => unknown) {
       const n = typeof found === "string" ? Number(found) : found;
       const blank = typeof found === "string" && found.trim() === "";
       if (typeof n === "number" && Number.isFinite(n) && !blank) {
-        holder[key] = n;
+        holder[key] = snapNearZero(n);
       }
     } else if (typeof current === "boolean") {
       if (typeof found === "boolean") holder[key] = found;
@@ -150,6 +166,7 @@ function loadParamsFromSearchParams(search: URLSearchParams) {
 }
 
 function writeParamsToSearchParams(search: URLSearchParams) {
+  snapNearZeroParams();
   forEachParam((path, holder, key) => {
     const value = holder[key];
     // Local-file urls (from the file picker) only work in this page session,
