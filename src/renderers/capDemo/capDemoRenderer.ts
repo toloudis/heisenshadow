@@ -43,6 +43,9 @@ const PEN_WIDTH1 = -0.1;
 // Width at p2 and the end, in hairlines
 const PEN_WIDTH2_HAIRLINES = 1;
 const PEN_FLARE_HAIRLINES = 3;
+// Sideways offset of p1 and p2 on the most curved stroke; the curve bows out
+// by 3/4 of it.
+const PEN_MAX_BEND = HALF_LEN;
 
 /**
  * A static test pattern of short, thick strokes for checking end caps and
@@ -50,15 +53,16 @@ const PEN_FLARE_HAIRLINES = 3;
  * caps). Each row is a different end style. The left half of the columns has
  * constant width; the right half repeats the same strokes swelling toward p1
  * and thinning toward p2. Across each half the strokes turn and bend more.
- * The last row is pen strokes: a dot narrowing to a 1px line that curves
- * slightly, then flares a little into a butt end.
+ * The last row is pen strokes: a dot narrowing to a 1px line, then flaring a
+ * little into a butt end, curving more from column to column to show how
+ * bending distorts the ends.
  */
 export class CapDemoRenderer implements Renderer {
   // One stroke per column of a half, bending more from left to right. Every
   // row and both halves share them.
   private readonly strokes: Stroke[] = [];
-  // One per column of a half, each curving gently to one side, more from
-  // left to right.
+  // One per column, each curving to one side, from gently on the left to
+  // strongly on the right.
   private readonly penStrokes: Stroke[] = [];
   // One pixel in paper units, along the canvas's shorter side
   private onePx = 1 / 800;
@@ -77,14 +81,16 @@ export class CapDemoRenderer implements Renderer {
       stroke.x1 = bend;
       stroke.x2 = -bend;
       this.strokes.push(stroke);
+    }
 
+    for (let c = 0; c < COLS; c++) {
       const pen = new Stroke({
         sizeX: 0,
         sizeY: HALF_LEN,
         lengthVariation: 0,
         variability: 0,
       });
-      const penBend = ((k + 1) / HALF_COLS) * 0.2 * HALF_LEN;
+      const penBend = ((c + 1) / COLS) * PEN_MAX_BEND;
       const endLen = PEN_END_FRACTION * 2 * HALF_LEN;
       pen.x1 = penBend;
       pen.y1 = pen.y0 + endLen;
@@ -137,7 +143,7 @@ export class CapDemoRenderer implements Renderer {
       ctx.lineWidth = PEN_DOT_WIDTH;
       ctx.translate(0.1 + c * 0.16, 0.12 + ROWS.length * ROW_SPACING);
       ctx.rotate(((k - (HALF_COLS - 1) / 2) * 30 * Math.PI) / 180);
-      this.penStrokes[k].draw(ctx);
+      this.penStrokes[c].draw(ctx);
       ctx.restore();
     }
 
