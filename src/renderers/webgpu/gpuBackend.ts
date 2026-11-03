@@ -4,7 +4,7 @@ import { COMPUTE_SHADER, RENDER_SHADER } from "./shaders";
 const SUBDIVISIONS = 24;
 // A cap extension pair, SUBDIVISIONS body pairs, and another cap extension pair.
 const VERTS_PER_STROKE = (SUBDIVISIONS + 2) * 2;
-const BYTES_PER_VERTEX = 16; // StripVertex is 4 floats
+const BYTES_PER_VERTEX = 24; // StripVertex is 5 floats, padded to 6
 const SAMPLE_COUNT = 4;
 // Largest piece of an exported image drawn at once.
 const EXPORT_TILE_SIZE = 4096;
@@ -27,8 +27,10 @@ class StrokeBatch {
   private clipBuffer?: GPUBuffer;
   private computeBindGroup?: GPUBindGroup;
   private renderBindGroup?: GPUBindGroup;
-  private readonly countBuffer: GPUBuffer;
-  private readonly countData = new Uint32Array(4);
+  // TessParams in the compute shader: pixels per paper unit (2 floats), stroke
+  // count, padding.
+  private readonly tessBuffer: GPUBuffer;
+  private readonly tessData = new ArrayBuffer(16);
   private readonly viewBuffer: GPUBuffer;
   private readonly viewData = new Float32Array(4);
 
@@ -36,7 +38,7 @@ class StrokeBatch {
     private readonly device: GPUDevice,
     private readonly pipelines: Pipelines,
   ) {
-    this.countBuffer = device.createBuffer({
+    this.tessBuffer = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
@@ -48,8 +50,12 @@ class StrokeBatch {
     this.ensureCapacity(1024, 1024);
   }
 
-  /** Upload the recorded strokes, replacing any uploaded before. */
-  upload(rec: RecordingContext) {
+  /**
+   * Upload the recorded strokes, replacing any uploaded before. They'll be
+   * drawn on paper `widthPx` x `heightPx` pixels, which sets how thin a
+   * stroke can be before it's faded instead.
+   */
+  upload(rec: RecordingContext, widthPx: number, heightPx: number) {
     const { device } = this;
     const n = rec.strokeCount;
     this.ensureCapacity(n, rec.clipPointCount);
@@ -72,8 +78,9 @@ class StrokeBatch {
         rec.clipPointCount * 2,
       );
     }
-    this.countData[0] = n;
-    device.queue.writeBuffer(this.countBuffer, 0, this.countData);
+    new Float32Array(this.tessData, 0, 2).set([widthPx, heightPx]);
+    new Uint32Array(this.tessData, 8, 1)[0] = n;
+    device.queue.writeBuffer(this.tessBuffer, 0, this.tessData);
     this.count = n;
   }
 
@@ -108,7 +115,7 @@ class StrokeBatch {
     this.strokeBuffer?.destroy();
     this.vertexBuffer?.destroy();
     this.clipBuffer?.destroy();
-    this.countBuffer.destroy();
+    this.tessBuffer.destroy();
     this.viewBuffer.destroy();
   }
 
@@ -150,7 +157,7 @@ class StrokeBatch {
       entries: [
         { binding: 0, resource: { buffer: this.strokeBuffer } },
         { binding: 1, resource: { buffer: this.vertexBuffer } },
-        { binding: 2, resource: { buffer: this.countBuffer } },
+        { binding: 2, resource: { buffer: this.tessBuffer } },
       ],
     });
     this.renderBindGroup = this.device.createBindGroup({
@@ -216,7 +223,20 @@ export class GpuBackend {
       fragment: {
         module: renderModule,
         entryPoint: "fs_main",
-        targets: [{ format }],
+        // Thin strokes are drawn faded (see MIN_WIDTH_PX), so blend. The
+        // target stays opaque: alpha 1 under anything stays 1.
+        targets: [
+          {
+            format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+              },
+              alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+            },
+          },
+        ],
       },
       primitive: { topology: "triangle-strip" },
       multisample: { count: SAMPLE_COUNT },
@@ -233,7 +253,7 @@ export class GpuBackend {
    */
   draw(rec: RecordingContext, clear = true) {
     const { device } = this;
-    this.screen.upload(rec);
+    this.screen.upload(rec, this.canvas.width, this.canvas.height);
     this.ensureMsaaTexture();
     if (!this.msaaTexture) return;
 
@@ -302,7 +322,7 @@ export class GpuBackend {
     const bgra = format === "bgra8unorm";
 
     try {
-      batch.upload(rec);
+      batch.upload(rec, w, h);
       let tessellated = false;
       for (let ty = 0; ty < h; ty += tileH) {
         for (let tx = 0; tx < w; tx += tileW) {
